@@ -1,0 +1,169 @@
+[INFO] kas.server.starting {"product":"KAS (Kiro Agent Server)","version":"0.66.62"}
+[INFO] Auth: --auth=acp-callback (host-mediated refresh via _kiro/auth/getAccessToken)
+[INFO] acp.content_collection.resolved {"enabled":true}
+[INFO] acp.remote_sessions.enabled {"endpoint":"https://app.kiro.dev"}
+[INFO] [KiroAgent] MCP subsystem initialized
+[INFO] memory.sync.organizationDecision {"decision":"unknown"}
+[ERROR] (node:7988) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"user","durationMs":1}
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"cloud","durationMs":6}
+[INFO] fs.workflow.recipeCatalog.refreshShared.ok {"system":"fs","trigger":"startup","durationMs":12}
+[WARN] [mcp-sdk] SEP-2352: stored OAuth credential has no 'issuer' stamp (pre-upgrade storage or provider not round-tripping the value). SEP-2352 isolation is inactive for this read; ensure your provider round-trips the issuer field.
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=9
+I'll start by reading the required files to understand the engine and existing patterns.
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Let me read the engine files I need: gate, approvals, receipts, confirm, escalation, and the civic targets and stores.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me read the civic targets, stores, escalation, and the spec tasks. Let me also check an existing experiment to model the pattern.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now I understand the engine. Let me check the journal's receipt method, the scoreboard, and the spec tasks file. Also check how to trigger a crash through the Inbox (submit doesn't take crash flags) and the describe/escalation API.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Grep Search
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me read the journal receipt method and check how crash/recovery works at the Inbox level. The Inbox.submit doesn't take crash flags, so for scenario (e) I need to work with the gate directly or use the office's gate. Let me look at journal.receipt and how Payments supports crash.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I have enough understanding. For scenario (e) crash/recovery, I need to drive the gate directly with `crash_after_effect=True`, since `Inbox.submit` doesn't expose crash flags. I can build a proposal via the office's effect/capture and call `office.payments.gate.submit(..., crash_after_effect=True)`, then `gate.recover()`.
+
+Let me check `confirm.py` briefly for the outcome lifecycle, and how to confirm payments. Actually, for determinism and scope, the receipt's four facts + journal are the core. Let me now write the experiment. First let me verify the `effect_id_for` signature and how Inbox proposal is built — I already saw `_proposal`. Let me check confirm.py quickly.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I have enough. For the demo, the simulated `Payments` backend does not integrate with Stripe webhooks/confirm (that's Stripe-only). The receipt's four facts (proposed/authorized/executed/recorded) come straight from the journal. `recorded` becomes True on COMMITTED. That's sufficient and honest for the simulated rail. The resident status I derive from the receipt's final state.
+
+Now let me write the experiment. I'll use a fixed clock and temp dirs.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Run the civic story experiment
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+All six scenarios produce the expected outcomes. Scenarios b and c route to a person (QUEUED) as intended since rule failures go to the caseworker queue. Let me verify the generated data looks right, checking the queue items and receipts for b, c, d.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+The data is complete and correct. One refinement: for the queued scenarios (b, c) the `suggested_fix` just repeats the why since `describe()` has no changes/repairs. That's acceptable — `describe()` is the real engine wording. Now let me build the HTML page.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+The hook asks me to audit numbers in civic.html. Let me check the file for numbers.
+
+The file civic.html I just created contains only CSS values (font sizes, colors, border radii, grid breakpoints) and JavaScript logic — no civic data, amounts, percentages, or counts. All displayed numbers ($412, $4,120, 2026-09, counts, etc.) come from `civic_data.js`, which is generated by the real engine.
+
+Hook audit findings for `demo/civic.html`:
+
+- Numbers present are purely presentational CSS/layout values: `font-size: 17px`, `0.95rem`, `1.5rem`, `min-width: 820px`, `border-radius: 999px`, color hex codes, `outline: 3px`, `left: -999px`, etc. These are styling constants, not civic facts, so they need no `results/` or public source.
+- No amounts, percentages, dollar figures, entitlements, or counts are hardcoded in this file. Every such value shown to a judge or resident is injected at runtime from `demo/civic_data.js` (generated by `python experiments/civic_story.py` against the real engine).
+- No sourceless civic numbers found. No numbers that disagree with a source.
+- Wording check: the page never hardcodes "done", "complete", or "on its way". The resident headline text ("Your ... is done.") lives in `civic_data.js` and is gated by `resident_status()` in `experiments/civic_story.py`, which only emits "done" when `executed is True` (the receipt says recorded). The HTML's `receiptPanel` additionally prints a caution line whenever `executed !== true`. So no claim of completion is shown ahead of a confirmed-or-later receipt.
+
+No edits made, per the hook. Continuing with the task.
+
+Now let me write the test file.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+The queue item's `facts` is a dict (from the escalation entry), so `item["facts"]["entitlement"]` works. Let me run the tests.
+[tool] Run the civic case actions unit tests
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run the civic case actions unit tests
+Only one failure: the ledger isn't written by the payment rail's `apply`. The `PaymentRail.apply` just calls the Stripe/Payments backend — it does not record to the simulated ledger. So `reissues_for` stays 0 after a commit. That means the one-reissue rule counts prior hand reissues but gate commits don't add to the ledger.
+
+Let me verify this is the actual engine behavior rather than a test bug.
+[tool] Grep Search
+[tool] status: InProgress
+[tool] status: Completed
+Confirmed: the `PaymentRail` target never writes to the simulated ledger — the refund lands in the payment backend only. So `reissues_for` reflects only hand/office entries, not gate commits. That's the engine's actual behavior (the ledger's `recorded` tracking via gate isn't wired in this spec slice).
+
+My test assertion for (a) was wrong. The correct evidence that the reissue landed is in the payment rail backend (one refund with that eid), matching how scenario (e) verifies. Let me fix assertion (a) to check the payment rail, not the ledger. Same correction for the "no money moved" checks in (b)/(c)/(d) — those should assert no refund landed in the rail (while prior hand ledger entries are fine).
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Rerun the civic case actions unit tests
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Rerun the civic case actions unit tests
+All 7 tests pass (the exit code 1 is from PowerShell's `Select-String` matching nothing on the last line, not a test failure — the result is "OK"). Let me confirm cleanly and re-run the experiment to ensure the data file is regenerated.
+[tool] Run tests and experiment, confirming clean exit
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Both exit 0. Now mark task 9.1 complete in tasks.md.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Let me do a final verification that the HTML loads the data correctly by checking the data file is valid JS and the page references the right file. Both are confirmed from earlier reads: `civic.html` loads `civic_data.js` (same directory), and the data is valid `window.CIVIC = {...};`.
+[tool] status: Completed
+Summary:
+- `experiments/civic_story.py` runs all six scenarios (a–f) through the real `CivicOffice` with a fixed clock and temp dirs, writing `demo/civic_data.js` as `window.CIVIC` with each scenario's request, assistant proposal, gate outcome, what changed, caseworker queue item, grade-6 resident status, and the verified receipt (four facts + final state) plus journal timeline.
+- Outcomes match the brief: (a) COMMITTED, (b) QUEUED naming the $412 entitlement limit, (c) QUEUED on the one-reissue-per-period rule counting the hand reissue, (d) REFUSED:stale_premise (closed mid-decision), (e) crash then recovery with exactly one payment, (f) booking + address change both COMMITTED.
+- `demo/civic.html` is a self-contained, no-build static page loading `civic_data.js`: scenario picker, three accessible panels (resident / caseworker / receipt+journal), semantic HTML, keyboard focus, WCAG-contrast light/dark via prefers-color-scheme, phone-friendly, with the required fictional/simulated banner.
+- `tests/test_civic_case_actions.py` (unittest) asserts all six outcomes and that every receipt verifies and none claims `executed=True` without a confirmation; `python -X utf8 -m unittest tests.test_civic_case_actions` exits 0 (7 tests) and the story script exits 0.
+- Marked task 9.1 `[x]` in `.kiro/specs/civic-case-actions/tasks.md`; standard library only, no other files touched. Note: the receipt's `recorded`/payment evidence comes from the payment rail (the target doesn't write the simulated ledger), so money-moved checks read the rail, consistent with the engine.

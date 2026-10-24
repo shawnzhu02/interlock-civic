@@ -1,0 +1,73 @@
+[INFO] kas.server.starting {"product":"KAS (Kiro Agent Server)","version":"0.66.62"}
+[INFO] Auth: --auth=acp-callback (host-mediated refresh via _kiro/auth/getAccessToken)
+[INFO] acp.content_collection.resolved {"enabled":true}
+[INFO] acp.remote_sessions.enabled {"endpoint":"https://app.kiro.dev"}
+[INFO] [KiroAgent] MCP subsystem initialized
+[INFO] memory.sync.organizationDecision {"decision":"unknown"}
+[ERROR] (node:11048) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"user","durationMs":2}
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"cloud","durationMs":8}
+[INFO] fs.workflow.recipeCatalog.refreshShared.ok {"system":"fs","trigger":"startup","durationMs":14}
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=7
+I'll start by reading the brief and the steering docs, then the engine files I need to reuse.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me read the steering docs and the three engine files I need to reuse.
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I have the gate and payments fully. Let me read the rest of approvals.py and the remaining steering docs to round out my understanding.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I have everything I need. I understand the gate's proposal/premise/lease model, the `Payments` target with `explain()`/`validate_premises()`/`query()` and tiers, and the `Inbox`/`Rule`/`Route`/`Authority` pre-action machinery. Now I'll write the three spec files.
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the design document.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the tasks list, with every task referencing the requirements it satisfies.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+All three spec files are written. Let me verify they landed correctly.
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: Completed
+Done. I created the spec at `.kiro/specs/civic-case-actions/` with the three files and wrote only those — no tasks were implemented.
+
+What I did first: read the Spec 1 section and the "Property-based tests" section of `docs/kiro-brief.md`, the four steering docs, and the three engine files (`gate.py`, `approvals.py`, `targets/payments.py`) so the design is grounded in how the engine actually works.
+
+**requirements.md** — 10 requirements in EARS format with numbered acceptance criteria:
+- The four gated actions, simulated systems of record, the four pre-action rules (entitlement ceiling, one-reissue-per-period, eligibility/active at send time, live authority lease), routing to the `caseworkers` group with an SLA, MCP exposure, and verifiable receipts.
+- Requirement 10 pulls in only the brief's PBT properties that apply to this spec: property 1 (at most one effect), property 5 (rules hold under concurrency), and property 2 (receipts never overclaim). I noted that the lifecycle-evidence (property 4) and ledger-reconciliation (property 3) properties belong to Spec 2, since this spec is the "was it the right action?" half.
+
+**design.md** — reuses the engine explicitly: `Gate` for dispatch/premise re-validation/recovery/receipts, `approvals.Rule`/`Route`/`Authority`/`Inbox` for the pre-action decision and person queue, and one target per system modeled on `targets/payments.py` (payment rail = tier 1, scheduler and case records = tier 2). It maps the proposal/premise/lease concepts to civic terms and shows how "closed while deciding" and "second reissue after a crash" fall out of the gate's commit-time and recovery checks rather than a new state machine.
+
+**tasks.md** — a numbered plan where every task (and sub-task) carries a `_Requirements:_` reference back to the criteria it satisfies.
+
+A couple of things worth your review before running tasks: I inferred the module layout (`backend/civic/`, `interlock/targets/civic/`, a `CivicOffice` facade) from the brief and structure steering, and I set the entitlement/large-amount limit as a configurable value rather than a fixed number since the brief says "a set limit" without naming it.

@@ -1,0 +1,289 @@
+[INFO] kas.server.starting {"product":"KAS (Kiro Agent Server)","version":"0.66.62"}
+[INFO] Auth: --auth=acp-callback (host-mediated refresh via _kiro/auth/getAccessToken)
+[INFO] acp.content_collection.resolved {"enabled":true}
+[INFO] acp.remote_sessions.enabled {"endpoint":"https://app.kiro.dev"}
+[INFO] [KiroAgent] MCP subsystem initialized
+[INFO] memory.sync.organizationDecision {"decision":"unknown"}
+[ERROR] (node:13500) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"user","durationMs":2}
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"cloud","durationMs":8}
+[INFO] fs.workflow.recipeCatalog.refreshShared.ok {"system":"fs","trigger":"startup","durationMs":14}
+[WARN] [mcp-sdk] SEP-2352: stored OAuth credential has no 'issuer' stamp (pre-upgrade storage or provider not round-tripping the value). SEP-2352 isolation is inactive for this read; ensure your provider round-trips the issuer field.
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=9
+I'll start by reading the spec files to understand the tasks.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me study the existing engine code that I need to reuse. Let me read the key files.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me read the escalation and journal modules, and look at an existing test and the easy.py for reference patterns.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me look at an existing test and the `easy.py` facade to understand how everything wires together, plus look at stripe_api.py briefly.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+Now let me look at the routing test and the Leases module, plus `interlock/__init__.py` and stripe_api to round out my understanding.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I now have a thorough understanding of the engine. Let me look at the targets `__init__.py` and stripe_api to understand the payment rail interface, then run the test suite to establish a baseline.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+I have a complete picture now. Let me run the baseline test suite first.
+[tool] Run the test suite for a baseline
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run the test suite for a baseline
+Baseline: 362 tests pass (exit code 1 is from the stderr noise, not failures — "OK"). The suite is slow (240s), so I'll run targeted test files during development and the full suite after each top-level task.
+
+Let me check pyproject.toml for the package config, then begin Task 1.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] List Directory
+[tool] status: InProgress
+[tool] status: Completed
+Now I'll start Task 1: the simulated systems of record under `backend/civic/`. Let me check if the `backend/civic` dir exists.
+[tool] File Search
+[tool] status: InProgress
+[tool] status: Completed
+Doesn't exist yet. Let me create the three simulated systems of record. Starting with the package init and `case_store.py`.
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now `case_store.py` (Task 1.1):
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now `ledger.py` (Task 1.2):
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now `scheduler_store.py` (Task 1.3):
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now let me verify the three modules import cleanly and behave correctly with a quick smoke check.
+[tool] Smoke test the three simulated systems of record
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Smoke test the three simulated systems of record
+All three systems work. (Exit code 1 is just the Select-String non-match filtering; the output is correct.) Task 1 is complete. Let me run the full suite to confirm nothing broke, then mark the tasks.
+[tool] Run full test suite after Task 1
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run full test suite after Task 1
+362 tests pass, still OK. Task 1 complete. Let me mark tasks 1, 1.1, 1.2, 1.3 as done.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now Task 2: the civic targets in `interlock/targets/civic/`, modeled on `payments.py`. Let me create the package and the three targets.
+
+Key design points from what I've read:
+- Target needs `tier`, `apply(eid, effect, crash_after_effect=False)`, `query(eid, effect)`, `explain(premises, eid, effect)` returning `{violations, changes, repairs}`, built on a `validate_premises`.
+- The gate's `_queryable` uses `getattr(self.target, "queryable", self.target.tier == 2)`.
+- Premises captured for payment rail: `{case_id, period, entitlement, eligible, active, prior_reissues}`.
+
+For the payment rail (tier 1), it wraps `Payments(tier=1)` in simulation. The `effect` for `reissue_payment` is `{case_id, period, amount}` and for `refund_fee` is `{case_id, fee_id, amount}`. Let me create the package.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the payment rail (Task 2.1). It is tier 1 and backs both `reissue_payment` and `refund_fee`. The premises are `{case_id, period, entitlement, eligible, active, prior_reissues}`. `apply` sends a refund via Stripe idempotency key; in simulation it reuses `Payments(tier=1)`. `query` lists by `eid`. `explain` reports over entitlement, eligibility/active, and prior reissues.
+
+Let me design the `apply` carefully. The underlying `Payments.apply(eid, effect, crash)` appends `{"eid": eid, **effect}` to `self.refunds`. Since the civic effect payload has `case_id`, `period`/`fee_id`, `amount`, I'll pass the whole effect through. The `query` is `any(r["eid"] == eid for r in self.refunds)`.
+
+For `validate_premises`/`explain`, I need to read current premises from the case store and ledger and compare against recorded premises. The target needs access to the case store and ledger for premise re-validation at send time.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Wait — there's a subtlety with `crash_after_effect`. `Payments.apply` already raises `SimulatedCrash` when `crash_after_effect=True`, so my wrapper would never reach the second raise. But `StripeRefunds.apply` also raises internally. So the extra raise after is dead code and would be unreachable. Let me simplify — just delegate, since both backends honor the flag themselves.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now the scheduler target (Task 2.2), tier 2, backs `book_appointment`. Effect: `{case_id, office, slot}`. `apply` writes a booking referenced by `eid`; `query` looks up by that reference. `explain` reports relevant premise changes (eligibility/active/closed).
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the case records target (Task 2.3), tier 2, backs `change_address`. Effect: `{case_id, new_address}`. `apply` writes the new address tagged with `eid`; `query` confirms whether the eid-tagged change landed. `explain` reports eligibility/closed or address-changed-elsewhere.
+
+The case store currently has `set_address` but no eid tagging or lookup of "did this eid-tagged change land". I need a way to record address changes keyed by eid. Let me add an address-change log to the case store. Actually, to keep systems of record cohesive and per structure conventions, the case system holds the address. I'll add an `address_changes` table to CaseStore that records each change with an eid, and the current address reflects the latest. Let me extend CaseStore.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `set_address` to record the change in the log (with an optional eid/source), and add `address_change_by_eid` and a way to detect address-changed-elsewhere. Let me update the methods.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now the case_records target. The premises: `{case_id, eligible, active, prior_address_changes}`. `explain` reports eligibility/closed or address-changed-elsewhere.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+I need to add `interlock.targets.civic` to the pyproject packages list. Let me do that, and also note the `capture` in case_records uses `address_changes_since(case_id, None)` which counts all changes — that's fine for a baseline premise.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now let me smoke-test the three targets end-to-end through a real Gate to make sure the engine accepts them.
+[tool] Smoke test the three civic targets through a Gate
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Smoke test the three civic targets through a Gate
+All three targets work through the gate: reissue commits, closed-while-deciding is refused with the `active: True→False` change reported, booking commits and is looked up, address change commits. Task 2 is functionally complete.
+
+Let me run the full suite to confirm nothing broke.
+[tool] Run full test suite after Task 2
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run full test suite after Task 2
+362 pass, OK. Task 2 complete. Mark it done.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now Task 3: the `CivicOffice` facade in `backend/civic/office.py`. It wires one `Inbox(gate, capture, effect, rules, routes, clock=)` per action family, each over its own `Gate` and target. Builds proposals as `{agent, lease, premises, effect, request}`.
+
+Looking at how `Inbox` works: `Inbox.__init__(gate, capture, effect, rules, routes, clock, name)`. The `capture(request)` reads premises from systems of record, `effect(request)` builds the effect payload. `Inbox._proposal` builds `{agent, lease, request_id, premises, effect, request}`.
+
+Task 3.1 asks for `effect(request)` and `capture(request)` per action; 3.2 wires one Inbox per action family. The action families are: payments (reissue_payment + refund_fee share the payment rail), scheduler (book_appointment), case-records (change_address).
+
+But reissue and refund have different effect payloads and different premises (refund uses fee_id, not period). However, the premises captured for the payment rail are keyed on `(case_id, period)`. For a refund, there's no period. Let me re-read the design: the payment rail premises are `{case_id, period, entitlement, eligible, active, prior_reissues}`. For a refund_fee, the effect is `{case_id, fee_id, amount}`.
+
+The entitlement rule applies to both (`request.amount <= facts.entitlement`), and the one-reissue rule applies to reissues. For a refund, "period" isn't meaningful. The simplest cohesive approach: give the payment family a capture that handles both actions — for reissue it reads period entitlement and prior reissues; for refund it reads an appropriate entitlement/premises. 
+
+Given the rules in Task 4 are `within entitlement`, `at most one reissue per period`, and `case eligible and active`, and the one-reissue rule checks `facts.prior_reissues == 0`, I'll make the payment capture read `prior_reissues` only for reissues (0 for refunds so the rule passes). Let me build the facade with a per-action capture/effect, and one Inbox per family. Each request carries `action` so capture/effect can branch.
+
+Let me check the `Authority` lease and how the Inbox sends under policy — the `capture` must return premises matching what the target re-validates. The target's `capture(case_id, period)` returns the full premise dict. For the office's capture, I'll call the target's capture and add `fraud` (already there) for routing.
+
+Let me write the facade.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now there's a concern: the payment rail's `capture`/`_now` compute `prior_reissues` and the target's `validate_premises` compares against recorded premises. But the office's `capture` returns extra fields (`fraud`, `caseworker`) that the target's `validate_premises` doesn't look at — that's fine, it only reads the keys it cares about. But the target's `_now` for payment rail builds a premise dict that doesn't include `fraud`/`caseworker`, and `validate_premises` only compares entitlement/eligible/active/prior_reissues. Good.
+
+However, the payment rail's premises dict used by the target expects `entitlement`, `eligible`, `active`, `prior_reissues` keys — the office capture provides those for reissue. For refund_fee, I set `prior_reissues=0` and entitlement from fee_amount or period. The target `validate_premises` for refund will compare `prior_reissues` (0) against `_now` which counts actual reissues in ledger for that period — but a refund has no period, so `period=None` and `self.ledger.entries(case_id, None)` returns entries where period IS NULL... that could mismatch. Let me handle: for refund, the premise `prior_reissues` should match what `_now` computes. Since refund_fee uses `period=None`, `_now` counts reissues with period=None (likely 0). That's consistent as long as capture and _now both use period=None. Good enough.
+
+Let me now test the CivicOffice facade end to end: a normal reissue, the $4,120-on-$412 case, duplicate reissue, closed-while-deciding, and routing.
+[tool] Smoke test the CivicOffice facade
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Smoke test the CivicOffice facade
+The facade works: normal reissue commits, over-entitlement is queued to caseworkers naming the `within entitlement` rule, booking and address change commit. Task 3 is complete.
+
+One note: the ledger isn't automatically updated by the payment rail on commit (the rail writes to the `Payments` backend, not the office ledger). That's a Spec-2 "recorded" lifecycle concern; for the one-reissue rule, the premise reads `ledger.reissues_for`. For the duplicate-reissue test in Task 5, I'll rely on the gate's premise re-validation against the rail's refund list. That's handled in Task 5, not now.
+
+Let me run the full suite after Task 3.
+[tool] Run full test suite after Task 3
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run full test suite after Task 3
+362 pass, OK. Mark Task 3 done.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now Task 4: Implement the pre-action rules as `approvals.Rule`. I already defined the three rule functions in office.py as part of the wiring. Task 4 asks for them specifically with the behaviors:
+
+- 4.1 `within entitlement`: `request.amount <= facts.entitlement`; failure refuses before send and names the entitlement limit and facts read. Cover the $4,120-on-$412 case.
+- 4.2 `at most one reissue per period`: `facts.prior_reissues == 0`, counting all sources.
+- 4.3 `case eligible and active`: `facts.eligible and facts.active`.
+
+The design table shows the rules as:
+- `within entitlement` → `request.amount <= facts.entitlement`
+- `at most one reissue per period` → `facts.prior_reissues == 0`
+- `case eligible and active` → `facts.eligible and facts.active`
+
+My current `at_most_one_reissue` guards against non-reissue actions, but the design's rule is purely `facts.prior_reissues == 0`. Since the payment family contains both reissue and refund, and refund_fee sets `prior_reissues=0` in capture, the pure form works for both. But applying "at most one reissue" to a refund is semantically odd. The design assigns PAYMENT_RULES to the payments inbox which handles both. Keeping the guard is safer and still satisfies the spec intent. However the design explicitly says `facts.prior_reissues == 0`. Let me align more closely but keep it correct: for refund_fee capture sets prior_reissues=0, so the pure check passes. I'll keep the guard minimal but let me reconsider — the cleanest is to match the design exactly and rely on capture setting prior_reissues=0 for refunds.
+
+Let me refine the rules to match the design precisely, and ensure the entitlement rule's refusal names the limit. The rule itself returns False; the *naming* of the limit happens via the escalation's `detail` (rule name) and `facts`. Requirement 3.2/3.3 say the refusal must name the limit (the entitlement amount) and the facts read. The escalation records `facts` (which includes `entitlement`), and `detail` is the failed rule name. Let me check: when a rule fails, `_escalate` sets `detail=failed` (list of failed rule names) and `facts` = captured premises. So the entitlement value is in `facts["entitlement"]`. That satisfies "names the limit and the facts read."
+
+Let me refine the rule definitions to match the design wording and add clear docstrings. I'll also make `at_most_one_reissue` match the design's pure form while keeping correctness.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now let me verify the three rules behave as specified, especially the $4,120-on-$412 case naming the limit, and the one-reissue rule counting ledger sources including by-hand.
+[tool] Verify the three pre-action rules
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Verify the three pre-action rules
+All three rules behave exactly as specified:
+- $4,120 on $412 → queued, detail names `within entitlement`, facts carry the $412 limit
+- At exactly the limit → commits
+- A by-hand ledger reissue (source=caseworker) → next reissue queued naming `at most one reissue per period`, `prior_reissues: 1`
+- Inactive case → queued naming `case eligible and active`
+
+Task 4 is complete. Let me run the full suite.
+[tool] Run full test suite after Task 4
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run full test suite after Task 4
+362 pass, OK. Mark Task 4 done.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+All four top-level tasks are done, each verified and the full suite green. Let me do a final confirmation of the task file state and clean up (there are no temp files left — the smoke tests used tempdirs that aren't in the workspace).
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+All four tasks (and their sub-tasks) are marked `[x]`. Tasks 5+ remain untouched. The work is complete.
+[tool] status: Completed
+Done. I executed tasks 1 through 4 (with all sub-tasks) of the `civic-case-actions` spec in order, verified each against the requirements, marked them `[x]` in tasks.md, and ran the full test suite after each top-level task. I did not touch task 5 or later. Everything is standard-library-only at runtime.
+
+## What I built
+
+Four civic actions (`reissue_payment`, `refund_fee`, `book_appointment`, `change_address`) now reach their systems of record only through the existing Interlock gate. I added no second state machine — the facade wires civic domain objects into the engine's `Gate`, `Rule`, `Route`, `Authority`, and `Inbox`.
+
+- **Task 1 — simulated systems of record** (`backend/civic/`): SQLite stores, standard library only, `clock=` injected, every name and log line labeled "SIMULATED".
+- **Task 2 — one target per system** (`interlock/targets/civic/`), modeled on `targets/payments.py`: payment rail is tier 1 (wraps `Payments(tier=1)` in simulation, `StripeRefunds` in test-key mode, `eid` as the Idempotency-Key, Stripe test PaymentIntent documented as a stand-in); scheduler and case records are tier 2 (lookup by `eid`). Each has `apply`, `query`, and `explain(premises, eid, effect)` returning `{violations, changes, repairs}` built on `validate_premises`.
+- **Task 3 — the `CivicOffice` facade** (`backend/civic/office.py`): per-action `effect(request)` and `capture(request)` that read premises from the systems of record (never the assistant), and one `Inbox` per action family over its own `Gate` and target.
+- **Task 4 — the three pre-action rules** as `approvals.Rule`: `within entitlement`, `at most one reissue per period` (counts every ledger source, including a caseworker by hand), and `case eligible and active`. I verified the $4,120-on-$412 case is refused before send, naming the $412 limit and the facts read.
+
+## Files created
+
+- `backend/civic/__init__.py`, `case_store.py`, `ledger.py`, `scheduler_store.py`, `office.py`
+- `interlock/targets/civic/__init__.py`, `payment_rail.py`, `scheduler.py`, `case_records.py`
+
+Files modified: `pyproject.toml` (added `interlock.targets.civic` to the packages list) and the spec `tasks.md` (checkboxes). I also extended `case_store.py` with an `address_changes` log so the tier-2 case-records target can confirm an `eid`-tagged change by lookup.
+
+## Test result
+
+`python -X utf8 -m unittest discover -s tests -q` after each top-level task: **362 tests passed, 11 skipped, OK**. The one non-zero exit code is from expected stderr noise (simulated-crash log lines), not test failures. I didn't add new tests yet — those are task 9/10, which I left for later per your instruction. I also ran targeted smoke checks confirming each action commits or routes correctly through the real gate.

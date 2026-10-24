@@ -62,7 +62,8 @@ satisfies.
     - _Requirements: 8.2, 8.3_
 
 - [ ] 9. Unit tests (`tests/test_civic_case_actions.py`, `unittest`)
-  - [x] 9.1 Cover: entitlement ceiling ($4,120 on $412 names the limit); duplicate reissue including after crash/restart; eligibility change at send time with the change reported; dead authority lease refused; large/flagged routing with SLA and unsettled-to-person; receipt acceptance and `executed` never true without confirmation.
+  - [x] 9.1 Cover: entitlement ceiling ($4,120 on $412 names the limit); duplicate reissue after a hand reissue; crash after send and restart (exactly one payment); eligibility change at send time with the change reported; booking and address change; receipt acceptance and `executed` never true without confirmation. (Done in `tests/test_civic_case_actions.py`, 7 tests.)
+  - [ ] 9.2 Still to cover: dead authority lease refused; large/flagged routing with SLA and unsettled-to-person.
     - _Requirements: 1.1, 1.2, 3.3, 4.3, 5.2, 5.4, 6.2, 7.1, 7.2, 7.3, 7.4, 9.1, 9.3_
 
 - [ ] 10. Property-based tests (`tests/test_civic_properties.py`, Hypothesis dev-only)
