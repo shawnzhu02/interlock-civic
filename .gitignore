@@ -9,3 +9,6 @@ build/
 *.egg-info/
 .venv/
 .DS_Store
+
+# Kiro CLI run logs (local only)
+.kiro-logs/
