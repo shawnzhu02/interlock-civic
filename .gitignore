@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.jsonl
+!results/*.jsonl
+*.jsonl.lock
+*.jsonl.claims
+.interlock/
+build/
+*.egg-info/
+.venv/
+.DS_Store

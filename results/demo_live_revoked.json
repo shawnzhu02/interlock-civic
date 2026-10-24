@@ -1,0 +1,533 @@
+{
+  "generated": "2026-09-14 01:07 UTC",
+  "demo": "temporal",
+  "page": "/demo",
+  "scenario": "approval_revoked_during_outage",
+  "stem": "demo_live_revoked",
+  "hand_check": false,
+  "settings": {
+    "model": "claude-haiku-4-5-20251001",
+    "claim_ttl": 15,
+    "stripe_timeout": 10
+  },
+  "live_seconds_click_to_done": 32.1,
+  "live_dom": [
+    {
+      "mode": "temporal",
+      "title": "Standard setup: Temporal and an idempotency key",
+      "result_class": "result bad",
+      "verdict": "Violated: $20.00 too much",
+      "headline": "1 refund, $20.00 refunded",
+      "payment_intent": "pi_3UFON688KhIqqdFL0H5BuUOm",
+      "refund_ids": [
+        "re_3UFON688KhIqqdFL0eTGNkGr"
+      ],
+      "events": 8,
+      "events_without_badge": 8,
+      "badges": 0,
+      "receipt": null,
+      "stripe": {
+        "amount_received": 10000,
+        "refunds": [
+          {
+            "id": "re_3UFON688KhIqqdFL0eTGNkGr",
+            "amount": 2000,
+            "metadata": {
+              "workflow_id": "refund-case-3096d6bcdce0"
+            }
+          }
+        ]
+      },
+      "page_matches_stripe": true
+    },
+    {
+      "mode": "interlock",
+      "title": "Temporal plus Interlock",
+      "result_class": "result good",
+      "verdict": "Held",
+      "headline": "0 refunds, $0.00 refunded",
+      "payment_intent": "pi_3UFON688KhIqqdFL0ugZrwUY",
+      "refund_ids": [],
+      "events": 11,
+      "events_without_badge": 11,
+      "badges": 0,
+      "receipt": "Interlock receipt for effect b9a3e80ab1f7: PROPOSED, AUTHORIZED, DISPATCHED, REFUSED.Verified from its entries: valid true, chain intact true, happened false, this effect committed at most once true, authorized when fired null, assumptions held null, refused \"lease at recovery\", signed no (no key configured).",
+      "stripe": {
+        "amount_received": 10000,
+        "refunds": []
+      },
+      "page_matches_stripe": true
+    }
+  ],
+  "live_run": {
+    "id": "e7c266e058",
+    "kind": "live",
+    "mock": false,
+    "scenario": "approval_revoked_during_outage",
+    "done": true,
+    "error": null,
+    "elapsed": 30.5,
+    "columns": [
+      {
+        "mode": "temporal",
+        "title": "Standard setup: Temporal and an idempotency key",
+        "sub": "Temporal retries the activity. Stripe Idempotency-Key is the workflow run id and activity id, as Temporal's docs suggest. The activity re-checks nothing."
+      },
+      {
+        "mode": "interlock",
+        "title": "Temporal plus Interlock",
+        "sub": "interlock.temporal.gated() is the activity body: intent on disk before the send, a claim, the approval and the facts re-checked at recovery, and a receipt."
+      }
+    ],
+    "events": [
+      {
+        "seq": 0,
+        "col": "interlock",
+        "kind": "case",
+        "text": "Stripe test payment pi_3UFON688KhIqqdFL0ugZrwUY: $100.00 paid. Support approves one refund of at most $20.00. Temporal workflow refund-case-8998565e824c started.",
+        "data": {
+          "payment_intent": "pi_3UFON688KhIqqdFL0ugZrwUY",
+          "case_id": "case-8998565e824c",
+          "dashboard": "https://dashboard.stripe.com/test/payments/pi_3UFON688KhIqqdFL0ugZrwUY",
+          "workflow_id": "refund-case-8998565e824c"
+        },
+        "t": 1.6,
+        "mock": false
+      },
+      {
+        "seq": 1,
+        "col": "interlock",
+        "kind": "worker",
+        "text": "Worker process started, pid 78446. It is set to SIGKILL itself right before the refund call to Stripe.",
+        "data": {
+          "pid": 78446
+        },
+        "t": 1.7,
+        "mock": false
+      },
+      {
+        "seq": 2,
+        "col": "temporal",
+        "kind": "case",
+        "text": "Stripe test payment pi_3UFON688KhIqqdFL0H5BuUOm: $100.00 paid. Support approves one refund of at most $20.00. Temporal workflow refund-case-3096d6bcdce0 started.",
+        "data": {
+          "payment_intent": "pi_3UFON688KhIqqdFL0H5BuUOm",
+          "case_id": "case-3096d6bcdce0",
+          "dashboard": "https://dashboard.stripe.com/test/payments/pi_3UFON688KhIqqdFL0H5BuUOm",
+          "workflow_id": "refund-case-3096d6bcdce0"
+        },
+        "t": 1.7,
+        "mock": false
+      },
+      {
+        "seq": 3,
+        "col": "temporal",
+        "kind": "worker",
+        "text": "Worker process started, pid 78449. It is set to SIGKILL itself right before the refund call to Stripe.",
+        "data": {
+          "pid": 78449
+        },
+        "t": 1.7,
+        "mock": false
+      },
+      {
+        "seq": 4,
+        "col": "interlock",
+        "kind": "decision",
+        "text": "claude-haiku-4-5-20251001 read the payment with get_payment, then called issue_refund: 2000 cents, \"Partial refund for cracked glass jar - support case #4471\"",
+        "data": {
+          "amount_cents": 2000,
+          "reason": "Partial refund for cracked glass jar - support case #4471",
+          "model": "claude-haiku-4-5-20251001",
+          "premises": {
+            "payment_intent": "pi_3UFON688KhIqqdFL0ugZrwUY",
+            "refunded_by_others": 0
+          }
+        },
+        "t": 7.5,
+        "mock": false
+      },
+      {
+        "seq": 5,
+        "col": "temporal",
+        "kind": "decision",
+        "text": "claude-haiku-4-5-20251001 read the payment with get_payment, then called issue_refund: 2000 cents, \"Partial refund for cracked glass jar - customer keeps blender. Support case #4471 approved.\"",
+        "data": {
+          "amount_cents": 2000,
+          "reason": "Partial refund for cracked glass jar - customer keeps blender. Support case #4471 approved.",
+          "model": "claude-haiku-4-5-20251001",
+          "premises": {
+            "payment_intent": "pi_3UFON688KhIqqdFL0H5BuUOm",
+            "refunded_by_others": 0
+          }
+        },
+        "t": 7.9,
+        "mock": false
+      },
+      {
+        "seq": 6,
+        "col": "interlock",
+        "kind": "journal",
+        "text": "PROPOSED by claude-haiku-4-5-20251001: refund $20.00. Premise: $0.00 already refunded on this payment.",
+        "data": {
+          "entry": {
+            "ts": 1789348075.503391,
+            "kind": "PROPOSED",
+            "effect_id": "b9a3e80ab1f7",
+            "agent": "claude-haiku-4-5-20251001",
+            "lease": "approval/case-8998565e824c",
+            "premises": {
+              "payment_intent": "pi_3UFON688KhIqqdFL0ugZrwUY",
+              "refunded_by_others": 0
+            },
+            "effect": {
+              "amount": 2000
+            },
+            "prev": null,
+            "hash": "9ef29f638c395e62d30b8824b91bac03b7474d89144945c780de0832bb0ec6b3"
+          }
+        },
+        "t": 8.5,
+        "mock": false
+      },
+      {
+        "seq": 7,
+        "col": "interlock",
+        "kind": "journal",
+        "text": "AUTHORIZED: approval approval/case-8998565e824c is live.",
+        "data": {
+          "entry": {
+            "ts": 1789348075.506044,
+            "kind": "AUTHORIZED",
+            "effect_id": "b9a3e80ab1f7",
+            "lease": "approval/case-8998565e824c",
+            "prev": "9ef29f638c395e62d30b8824b91bac03b7474d89144945c780de0832bb0ec6b3",
+            "hash": "2368fd58aa7acb7eceb844122e4c25da1a92313cbd2508c47191f86b6d185d97"
+          }
+        },
+        "t": 8.5,
+        "mock": false
+      },
+      {
+        "seq": 8,
+        "col": "interlock",
+        "kind": "journal",
+        "text": "DISPATCHED: on disk before the refund call. Checked just now: approval live, capped at $20.00, payment's refunds unchanged.",
+        "data": {
+          "entry": {
+            "ts": 1789348075.967795,
+            "kind": "DISPATCHED",
+            "effect_id": "b9a3e80ab1f7",
+            "effect": {
+              "amount": 2000
+            },
+            "lease": "approval/case-8998565e824c",
+            "premises": {
+              "payment_intent": "pi_3UFON688KhIqqdFL0ugZrwUY",
+              "refunded_by_others": 0
+            },
+            "checks": {
+              "lease_live": true,
+              "lease": {
+                "lease_id": "approval/case-8998565e824c",
+                "max_cents": 2000,
+                "revoked": null,
+                "granted": 1789348069.2815502
+              },
+              "violations": []
+            },
+            "prev": "2368fd58aa7acb7eceb844122e4c25da1a92313cbd2508c47191f86b6d185d97",
+            "hash": "bdb8d1f4bdf23f2c39321ed7afc3ce6e358ef70483e81eae95251963b4f2c1ca"
+          }
+        },
+        "t": 8.5,
+        "mock": false
+      },
+      {
+        "seq": 9,
+        "col": "interlock",
+        "kind": "crash",
+        "text": "Worker pid 78446 is dead: exit code -9 (SIGKILL), right before the refund call to Stripe.",
+        "data": {
+          "pid": 78446,
+          "exit_code": -9,
+          "point": "before_send"
+        },
+        "t": 8.5,
+        "mock": false
+      },
+      {
+        "seq": 10,
+        "col": "interlock",
+        "kind": "revoke",
+        "text": "While the worker is down, support revokes approval approval/case-8998565e824c. Approval live now: False.",
+        "data": {
+          "lease_id": "approval/case-8998565e824c",
+          "live": false
+        },
+        "t": 8.5,
+        "mock": false
+      },
+      {
+        "seq": 11,
+        "col": "interlock",
+        "kind": "worker",
+        "text": "Worker process restarted, pid 78608. Temporal will retry the refund activity.",
+        "data": {
+          "pid": 78608
+        },
+        "t": 8.5,
+        "mock": false
+      },
+      {
+        "seq": 12,
+        "col": "temporal",
+        "kind": "crash",
+        "text": "Worker pid 78449 is dead: exit code -9 (SIGKILL), right before the refund call to Stripe.",
+        "data": {
+          "pid": 78449,
+          "exit_code": -9,
+          "point": "before_send"
+        },
+        "t": 9.0,
+        "mock": false
+      },
+      {
+        "seq": 13,
+        "col": "temporal",
+        "kind": "revoke",
+        "text": "While the worker is down, support revokes approval approval/case-3096d6bcdce0. Approval live now: False.",
+        "data": {
+          "lease_id": "approval/case-3096d6bcdce0",
+          "live": false
+        },
+        "t": 9.0,
+        "mock": false
+      },
+      {
+        "seq": 14,
+        "col": "temporal",
+        "kind": "worker",
+        "text": "Worker process restarted, pid 78658. Temporal will retry the refund activity.",
+        "data": {
+          "pid": 78658
+        },
+        "t": 9.0,
+        "mock": false
+      },
+      {
+        "seq": 15,
+        "col": "interlock",
+        "kind": "retry",
+        "text": "Temporal runs refund attempt 2. Attempt 1 failed: activity StartToClose timeout",
+        "data": {
+          "attempt": 2,
+          "last_failure": "activity StartToClose timeout"
+        },
+        "t": 22.8,
+        "mock": false
+      },
+      {
+        "seq": 16,
+        "col": "interlock",
+        "kind": "journal",
+        "text": "REFUSED: lease at recovery, approval not live",
+        "data": {
+          "entry": {
+            "ts": 1789348092.185365,
+            "kind": "REFUSED",
+            "effect_id": "b9a3e80ab1f7",
+            "reason": "lease at recovery",
+            "resolves": true,
+            "rechecked": {
+              "lease_live": false,
+              "lease": {
+                "lease_id": "approval/case-8998565e824c",
+                "max_cents": 2000,
+                "revoked": 1789348076.1830661,
+                "granted": 1789348069.2815502
+              }
+            },
+            "prev": "bdb8d1f4bdf23f2c39321ed7afc3ce6e358ef70483e81eae95251963b4f2c1ca",
+            "hash": "6552d8f7505c06bf5e2d44cf866194e8369799b2b656c84028bbac07dfad6411"
+          }
+        },
+        "t": 24.9,
+        "mock": false
+      },
+      {
+        "seq": 17,
+        "col": "temporal",
+        "kind": "retry",
+        "text": "Temporal runs refund attempt 2. Attempt 1 failed: activity StartToClose timeout",
+        "data": {
+          "attempt": 2,
+          "last_failure": "activity StartToClose timeout"
+        },
+        "t": 24.9,
+        "mock": false
+      },
+      {
+        "seq": 18,
+        "col": "interlock",
+        "kind": "result",
+        "text": "0 refunds, $0.00 refunded",
+        "data": {
+          "headline": "0 refunds, $0.00 refunded",
+          "verdict": "Held",
+          "held": true,
+          "want_text": "no refund",
+          "outcome": "REFUSED:lease_at_recovery",
+          "why": "Interlock refused at recovery: the approval was revoked while the worker was down.",
+          "payment_intent": "pi_3UFON688KhIqqdFL0ugZrwUY",
+          "dashboard": "https://dashboard.stripe.com/test/payments/pi_3UFON688KhIqqdFL0ugZrwUY",
+          "refunds": [],
+          "refunded_cents": 0,
+          "receipt": {
+            "effect_id": "b9a3e80ab1f7",
+            "final": "REFUSED",
+            "entries": [
+              "PROPOSED",
+              "AUTHORIZED",
+              "DISPATCHED",
+              "REFUSED"
+            ],
+            "verification": {
+              "valid": true,
+              "tamper_evident": true,
+              "signed": null,
+              "happened": false,
+              "happened_once": true,
+              "authorized_when_fired": null,
+              "assumptions_held": null,
+              "refused": "lease at recovery",
+              "evidence": null,
+              "problems": []
+            }
+          },
+          "workflow_id": "refund-case-8998565e824c",
+          "workflow_status": "COMPLETED",
+          "refund_attempts": 2,
+          "worker_exit_code": -9,
+          "crash_to_close": 16.1
+        },
+        "t": 26.4,
+        "mock": false
+      },
+      {
+        "seq": 19,
+        "col": "temporal",
+        "kind": "stripe",
+        "text": "Stripe now lists refund re_3UFON688KhIqqdFL0eTGNkGr: $20.00, sent by the agent's workflow.",
+        "data": {
+          "refund_id": "re_3UFON688KhIqqdFL0eTGNkGr",
+          "amount": 2000
+        },
+        "t": 26.6,
+        "mock": false
+      },
+      {
+        "seq": 20,
+        "col": "temporal",
+        "kind": "result",
+        "text": "1 refund, $20.00 refunded",
+        "data": {
+          "headline": "1 refund, $20.00 refunded",
+          "verdict": "Violated: $20.00 too much",
+          "held": false,
+          "want_text": "no refund",
+          "outcome": "REFUNDED",
+          "why": "The retry sent the refund. Nothing in the activity re-checked the approval or the payment after the crash.",
+          "payment_intent": "pi_3UFON688KhIqqdFL0H5BuUOm",
+          "dashboard": "https://dashboard.stripe.com/test/payments/pi_3UFON688KhIqqdFL0H5BuUOm",
+          "refunds": [
+            {
+              "id": "re_3UFON688KhIqqdFL0eTGNkGr",
+              "amount": 2000,
+              "status": "succeeded",
+              "by": "sent by the agent's workflow"
+            }
+          ],
+          "refunded_cents": 2000,
+          "receipt": null,
+          "workflow_id": "refund-case-3096d6bcdce0",
+          "workflow_status": "COMPLETED",
+          "refund_attempts": 2,
+          "worker_exit_code": -9,
+          "crash_to_close": 17.2
+        },
+        "t": 30.5,
+        "mock": false
+      }
+    ]
+  },
+  "live_banner": "LIVE RUN: Stripe test mode, claude-haiku-4-5-20251001, Temporal dev server, worker processes killed with SIGKILL. Scenario: Approval revoked during the outage.",
+  "live_status": "Run e7c266e058 finished in 30.5s.",
+  "runs_started": 2,
+  "elapsed_read_twice_3s_apart": [
+    30.5,
+    30.5
+  ],
+  "narrow_scroll_width": 400,
+  "narrow_status": "Run e7c266e058 finished in 30.5s.",
+  "cross_site": {
+    "page_origin": "http://127.0.0.1:57287",
+    "browser_attempts": {
+      "no_cors_text_plain": "sent, opaque response opaque",
+      "cors_json": "blocked: Failed to fetch"
+    },
+    "latest_before": "e7c266e058",
+    "latest_after": "e7c266e058",
+    "run_started": false,
+    "direct_status": {
+      "text/plain from curl-like client": 403,
+      "JSON with Origin http://evil.example": 403,
+      "GET with Host rebound.example (DNS rebinding)": 403
+    }
+  },
+  "poll_race": {
+    "held_back_run": "e7c266e058",
+    "started_run": "29554e571b",
+    "page_run_id": "29554e571b",
+    "page_run_kind": "mock",
+    "status": "Run 29554e571b (MOCK) finished in 0s.",
+    "held": true
+  },
+  "mock_dom": [
+    {
+      "mode": "temporal",
+      "title": "MOCKDurable execution, simulated",
+      "result_class": "result bad",
+      "verdict": "Violated: $20 too much",
+      "headline": "$20 refunded (simulated)",
+      "payment_intent": null,
+      "refund_ids": [],
+      "events": 4,
+      "events_without_badge": 0,
+      "badges": 6,
+      "receipt": null
+    },
+    {
+      "mode": "interlock",
+      "title": "MOCKInterlock gate, simulated",
+      "result_class": "result good",
+      "verdict": "Held",
+      "headline": "$0 refunded (simulated)",
+      "payment_intent": null,
+      "refund_ids": [],
+      "events": 6,
+      "events_without_badge": 0,
+      "badges": 8,
+      "receipt": null
+    }
+  ],
+  "mock_banner": "MOCK RUN: simulated in this process by experiments/refund_agent.py. No Stripe, no model, no Temporal, no real crash. Not a live result.",
+  "mock_labels": {
+    "title": "MOCK: Interlock: one crash, two setups",
+    "status": "Run 29554e571b (MOCK) finished in 0s.",
+    "live_settings_shown": false,
+    "live_note_shown": false
+  },
+  "mock_narrow_status": "Run 29554e571b (MOCK) finished in 0s.",
+  "processes_left": null
+}
