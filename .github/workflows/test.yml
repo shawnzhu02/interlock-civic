@@ -7,8 +7,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.12", "3.13"]     # 3.9 is the floor pyproject.toml promises
+        python-version: ["3.12", "3.13"]
         include:
+          - os: ubuntu-22.04                        # 3.9 is the floor pyproject.toml promises; newer images lack it
+            python-version: "3.9"
           - os: windows-latest
             python-version: "3.13"
     env:
