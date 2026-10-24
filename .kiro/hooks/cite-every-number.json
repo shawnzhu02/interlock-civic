@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Cite every number",
+      "description": "When the README, KIRO.md, or a page residents or judges see is saved, check that every number has a source.",
+      "trigger": "PostFileSave",
+      "matcher": "(README\\.md|KIRO\\.md|demo[/\\\\].*\\.html|site[/\\\\].*\\.html)$",
+      "action": {
+        "type": "agent",
+        "prompt": "Read the file that was just saved. List every number, amount, percentage, and count in it. For each one, name its source: a file in results/ (quote the matching line), a test in tests/, or a public source that is cited in the same file (for example PaymentAccuracy.gov or GAO). Flag every number with no source, and every number that disagrees with its source. Also flag any wording that claims an action is done, complete, or on its way when the receipt shown does not say confirmed or later. Do not edit the file. Report the findings only."
+      }
+    }
+  ]
+}

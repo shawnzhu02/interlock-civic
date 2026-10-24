@@ -1,33 +1,59 @@
-# Interlock
+# Interlock Civic
 
-[![test](https://github.com/az-said/Interlock/actions/workflows/test.yml/badge.svg)](https://github.com/az-said/Interlock/actions/workflows/test.yml) · MIT · Python 3.9+ · zero dependencies
+[![test](https://github.com/shawnzhu02/interlock-civic/actions/workflows/test.yml/badge.svg)](https://github.com/shawnzhu02/interlock-civic/actions/workflows/test.yml) · MIT · Python 3.9+ · zero runtime dependencies · Hackachusetts, **Civic Services** track
 
-**Every action an AI agent takes gets a receipt: it happened exactly once, it was authorized when it fired, and the facts it was decided on still held when it landed.**
+**Interlock independently checks that AI assistants handling residents' public-benefit cases did the right thing, and that what they said happened actually happened.**
 
-A customer paid $100. A support case approves one $20 partial refund. An AI agent issues it. The service commits the refund; the process dies before the response comes back. On restart, nothing in the system can answer three questions: **did the refund happen? may I retry? was I still allowed to do it?**
+A resident messages a benefits office's AI assistant: "My payment never came." Thirty seconds later the assistant replies, "Reissued, your $412 payment is on its way," and closes the case. A week later the payment fails because the resident's bank account was closed. The office's ledger never records the failure. Nobody notices until the resident misses rent and calls the office.
 
-Today's answer is a human with two logs and a spreadsheet. Or, worse, the workflow re-runs, the model says "$30" this time, and the customer gets $50. Interlock answers all three questions mechanically, refuses the $30, and is honest about the one case where nobody can know.
+Public agencies are starting to let AI assistants act on cases. They reissue payments, refund fees, book appointments, and change addresses. Today the only record of what an assistant did lives inside the assistant's own logs, and one silent failure can repeat across thousands of cases. Agencies trust their books because auditors check them independently. AI assistants need the same.
+
+The stakes are already large without AI in the loop. Federal agencies estimated **about $186 billion in improper payments in fiscal year 2025, across 64 programs; about $153 billion of it was overpayments** ([GAO-26-108694](https://www.gao.gov/products/GAO-26-108694), April 2026). Agents that act faster than people can review make independent checks more important, not less.
+
+## How it works
+
+Interlock checks two separate things: whether an action was appropriate, and whether its expected result actually happened.
+
+- **Was it the right action?** Before an action runs, fixed rules compare it with the resident's request, the case's entitlement, payments already made for the same period, eligibility status, and the caseworker's authority. A $4,120 payment on a $412 entitlement is stopped, and so is a second reissue for the same missed payment. Cases the rules cannot settle go to a caseworker.
+- **Did it happen?** After the action, Interlock confirms the result in every system it touches and keeps tracking it. A payment moves from `requested` to `sent` to `confirmed` to `recorded` in the ledger, or to `failed`. Each receipt states where the action stands now and never claims more than the evidence shows.
+- **If not:** the case goes to a caseworker with the evidence and a suggested fix. A retry happens only when it is safe. The assistant's "done" message to the resident is held until the checks pass.
+
+The office keeps its current assistant. Interlock sits between the assistant and the office's systems and reads those systems itself. It never relies on the assistant's own account.
+
+## Who it serves
+
+- **Residents** get a plain-language status page that never says "done" before the evidence does.
+- **Caseworkers** see only the cases that need a person, each with what changed and a suggested fix.
+- **Agency finance and auditors** read receipts instead of reconciling logs.
+
+## The demo
+
+The demo office, the "Riverside County Benefits Office", is fictional. Its case system and ledger are simulated and labeled as simulated. The payment rail is real Stripe test mode. A refund against a test payment stands in for the resident's payment, because Stripe test mode has no ACH or EBT. Stripe's test card `4000 0000 0000 5126` makes a refund succeed and then fail later, which is the story above, run on a real API.
+
+**Status:** the civic layer is being built in Kiro from [`docs/kiro-brief.md`](docs/kiro-brief.md). Its specs are in [`.kiro/specs/`](.kiro/), and the write-up is in [`KIRO.md`](KIRO.md). The live test link will be added here once the civic layer is deployed.
+
+## What already works: the engine
+
+The civic layer sits on the Interlock transaction-control engine. The engine is already built and tested:
+
+- It records each action to disk before the action runs.
+- It re-checks authority and premises at send time.
+- It prevents double execution after a crash.
+- It produces a receipt anyone can verify.
 
 ```
-python3 demo.py naive     # today: the refund lands twice
-python3 demo.py 2         # Interlock: lands once, receipt says so
+python3 demo.py naive     # today: the action lands twice after a crash
+python3 demo.py 2         # Interlock: lands once, and the receipt says so
 python3 demo.py 3         # Interlock against an API that can't help: refuses to guess
 ```
 
-Proof, not promises:
+The engine was measured on refunds, and the measurements carry over directly to benefit payments. On a synthetic day of 100 requests ([results/approval_inbox.md](results/approval_inbox.md), mix stated as an assumption), rules plus Interlock took reviews from 100 to 36 with zero wrong payouts, where rules alone paid out wrong 10 times.
 
-- **Real Stripe.** The refund faults run against Stripe's live test mode; every PaymentIntent id is listed in [results/stripe_live.md](results/stripe_live.md) so the refunds can be checked in the dashboard.
-- **Real Temporal.** On a real Temporal dev server, durable execution retries a stale refund to $40, exactly as its own contract says it should. With Interlock as the activity body, the same retry is refused.
-- **Measured, not argued.** Ten faults and a control against six systems, every cell regenerated by `python3 experiments/run_all.py` in under a second. CI fails if the tables drift from the code.
-- **Tested against ourselves.** 278 tests including a 2,000-case randomized fault sweep. Writing them found 15 real bugs in our own gate; each fix has a test that failed before it. Every test and experiment, with the numbers you can quote, is in [tests/README.md](tests/README.md).
-- **Why now.** Three research groups (Huawei, Tsinghua, WashU) published pieces of this layer between June and September 2026. None re-checks premises on the recovery path; none ships adapters for real services.
+It is tested against itself. Writing the tests found 15 real bugs in our own gate, and each fix has a test that failed before the fix. [tests/README.md](tests/README.md) lists every test and experiment.
 
-> *"The system must distinguish what an agent proposed, what was authorized, what was executed, and what was durably recorded."*
-> — the Cloud AI track brief, one sentence in, describing a thing that did not exist. Now it does.
+**Credit.** The engine comes from the MIT-licensed Interlock prototype at [github.com/az-said/Interlock](https://github.com/az-said/Interlock). This repository builds the civic product on top of it. The rest of this README documents the engine as it stands.
 
-The full narrative — the root, the field, what we ruled out, why it's a business — is in [docs/00-the-whole-story.md](docs/00-the-whole-story.md), or as a visual walkthrough at [az-said.github.io/Interlock/docs/interlock-explained.html](https://az-said.github.io/Interlock/docs/interlock-explained.html).
-
-**The goal: let finance teams cut two thirds of the manual approvals they do on agent actions.** Much of what a reviewer checks is mechanical (is the order still eligible, was it already refunded, is this still allowed), and Interlock checks exactly that at the moment of sending. On a synthetic day of 100 refund requests ([results/approval_inbox.md](results/approval_inbox.md), mix stated as an assumption), rules plus Interlock took reviews from 100 to 36 with zero wrong payouts, where rules alone paid out wrong 10 times.
+---
 
 ## What it is
 
@@ -57,7 +83,7 @@ The output of every effect is a **receipt**: the four facts and a final state. `
     final       COMMITTED
 ```
 
-That is the object the brief asked for. An auditor reads receipts instead of reconciling logs.
+An auditor reads receipts instead of reconciling logs.
 
 ## What nobody else combines
 
@@ -113,7 +139,7 @@ Open `viewer/index.html`. It replays the gate's real journal for every fault as 
 
 Two experiments, same gate, same journal, different worlds. Every cell is produced by `python3 experiments/run_all.py`; the tables below are copied from `results/`.
 
-### 1. The refund agent (the brief's own example)
+### 1. The refund agent (the base experiment)
 
 $100 paid, one $20 partial refund approved. Invariant: exactly $20 refunded, or $0 if the lease was revoked or the order became ineligible first. Three baselines: today's naive re-run, the conventional "just use idempotency keys" operation, and durable execution the way Temporal, DBOS and Restate recommend (recorded step results replay, a crashed step re-runs with a stable key, Stripe-grade target).
 
@@ -134,7 +160,7 @@ $100 paid, one $20 partial refund approved. Invariant: exactly $20 refunded, or 
 
 **Finding 2. Idempotency keys are necessary and not sufficient.** The idempotency-only column handles crashes, duplicates, and the $30 re-decision, all at the service. It still refunds under a revoked lease and refunds an ineligible order, because the service can't see the agent's authority or premises. The difference between that column and the gate columns is what the runtime adds, measured rather than claimed.
 
-**Finding 4 (added after checkpoint 2). Recovery is when the world moves.** The last three rows found a bug in our own gate. Until this change, `recover()` re-sent at tiers 1 and 2 without re-checking premises or lease, so the gate refunded $40 when support refunded the order by hand during the outage, and refunded under a lease revoked during the outage. Tier 1 also trusted the provider's dedup forever, but Stripe prunes idempotency keys after 24 hours, and a retry after that is a new refund. The fix: a resend is a new dispatch, so I3 and I4 run again first, and after the dedup window tier 1 is treated as a lookup, not a safe retry. The idempotency-only column still fails all three, because a key only matches the same request.
+**Finding 4 (found while testing). Recovery is when the world moves.** The last three rows found a bug in our own gate. Until this change, `recover()` re-sent at tiers 1 and 2 without re-checking premises or lease, so the gate refunded $40 when support refunded the order by hand during the outage, and refunded under a lease revoked during the outage. Tier 1 also trusted the provider's dedup forever, but Stripe prunes idempotency keys after 24 hours, and a retry after that is a new refund. The fix: a resend is a new dispatch, so I3 and I4 run again first, and after the dedup window tier 1 is treated as a lookup, not a safe retry. The idempotency-only column still fails all three, because a key only matches the same request.
 
 ### 2. Parallel coding agents (the same root, wearing a different hat)
 
@@ -150,7 +176,7 @@ Two agents on one repo. Agent B decides first, agent A lands first. That orderin
 | lease revoked | lands ❌ | refused ✅ | refused ✅ |
 | A keeps name+arity, inverts meaning | lands, **breaks** ❌ | refused ✅ | lands, **breaks** ❌ |
 
-**Finding 3. Premise granularity is a dial with a floor.** File-hash premises never land a broken change but refuse benign concurrent edits: that's the naive "did the file change" check every worktree tool could add, and it over-fires. Symbol premises (what the agent actually *referenced*, not what it *opened*) land benign edits, catch the rename, and catch duplicated work with zero model calls. Duplicated work is the single most common multi-agent failure mode in the Berkeley MAST study (17% of 1,600 traces). But symbol premises cannot see a change that keeps the signature and inverts the meaning. No mechanically extractable premise catches that row. Catching it requires understanding intent, which is a model-quality question, and the brief is explicit that protocol guarantees and model quality stay separate. That row is the measured boundary.
+**Finding 3. Premise granularity is a dial with a floor.** File-hash premises never land a broken change but refuse benign concurrent edits: that's the naive "did the file change" check every worktree tool could add, and it over-fires. Symbol premises (what the agent actually *referenced*, not what it *opened*) land benign edits, catch the rename, and catch duplicated work with zero model calls. Duplicated work is the single most common multi-agent failure mode in the Berkeley MAST study (17% of 1,600 traces). But symbol premises cannot see a change that keeps the signature and inverts the meaning. No mechanically extractable premise catches that row. Catching it requires understanding intent, which is a model-quality question, and protocol guarantees and model quality stay separate here. That row is the measured boundary.
 
 The thesis behind this half, from the team's concurrency-control spec: **agent transactions need concurrency control, but not the classical kind.** Abort-and-retry assumes a cheap, deterministic redo. LLM agents cost 4–15× tokens per attempt and don't reproduce their plan on re-run. So the gate's response to a conflict is graded by what it can say mechanically, not "abort everything."
 
@@ -343,29 +369,19 @@ An `EffectTarget` is an adapter with four methods: `capture` premises, `validate
 
 Integration sketch for LangGraph, MCP, and the OpenAI Agents SDK in [docs/04-integration.md](docs/04-integration.md).
 
-## Who this is for
-
-The platform engineer who gets paged when an agent double-fires. The team running Claude Code or Codex in parallel and finding green builds that don't run. The finance team about to let an agent touch refunds and being told by compliance that "we have logs" is not an answer to "who authorized this."
-
-Reconciliation is already the most expensive manual process in corporate finance. Agent-originated actions are about to multiply the volume that needs reconciling. A receipt per effect is cheaper than a human per incident.
-
 ## What's real, what's not
 
 **Real.** The journal, the gate, both targets, both experiments, every number above. `python3 experiments/run_all.py` regenerates `results/` from scratch in under a second.
 
-**Tested.** `python3 -m unittest discover -s tests` (278 tests, including the scenario suite, CI on Python 3.9, 3.12 and 3.13) asserts every row above, where each baseline fails as well as where the gate holds; runs 2,000 randomized interleavings of tier, crash point, events before the decision and during the outage, late recovery, and duplicate delivery; races eight workers on one journal (JSONL and SQLite) to prove one dispatch and one recovery; tampers with receipts; runs the approval inbox through stale, expired, and unauthorized approvals; runs the three-line integration through a simulated restart; and kills the MCP proxy mid-call against a real subprocess server. CI runs it on every push and fails if `results/` drifts from the code. Writing these tests found six bugs in our own code: recovery resent without re-checking, a duplicate could resend an unresolved action, concurrent workers could dispatch twice, an agent retrying after a refusal was checked against freshly read facts instead of the ones it decided on, a SQLite lock could make a concurrent worker lose its request, and the approval inbox crashed reconciling after a crash. An adversarial review of the package then found nine more, the worst critical: a recovery running while a send was still being applied could send it a second time. Sends now hold a claim that recovery waits out. The other eight: recovery re-checked the wrong lease, a payload could win a race against the recorded decision, the MCP proxy could leave a call unanswered, one failing effect could stop recovery of the rest, same-named functions shared a journal, a torn journal line stopped the gate, the Temporal helper reported an unsettled attempt as done, and `verify()` accepted a forged lone commit. All fifteen are fixed, and each has a test in `tests/` that failed before its fix.
+**Tested.** `python3 -m unittest discover -s tests` (362 tests, including the scenario suite, CI on Python 3.9, 3.12 and 3.13) asserts every row above, where each baseline fails as well as where the gate holds; runs 2,000 randomized interleavings of tier, crash point, events before the decision and during the outage, late recovery, and duplicate delivery; races eight workers on one journal (JSONL and SQLite) to prove one dispatch and one recovery; tampers with receipts; runs the approval inbox through stale, expired, and unauthorized approvals; runs the three-line integration through a simulated restart; and kills the MCP proxy mid-call against a real subprocess server. CI runs it on every push and fails if `results/` drifts from the code. Writing these tests found six bugs in our own code: recovery resent without re-checking, a duplicate could resend an unresolved action, concurrent workers could dispatch twice, an agent retrying after a refusal was checked against freshly read facts instead of the ones it decided on, a SQLite lock could make a concurrent worker lose its request, and the approval inbox crashed reconciling after a crash. An adversarial review of the package then found nine more, the worst critical: a recovery running while a send was still being applied could send it a second time. Sends now hold a claim that recovery waits out. The other eight: recovery re-checked the wrong lease, a payload could win a race against the recorded decision, the MCP proxy could leave a call unanswered, one failing effect could stop recovery of the rest, same-named functions shared a journal, a torn journal line stopped the gate, the Temporal helper reported an unsettled attempt as done, and `verify()` accepted a forged lone commit. All fifteen are fixed, and each has a test in `tests/` that failed before its fix.
 
-**Simulated.** The payments API and the repo are local. Faults are injected, not observed. This is by design: the brief asks for targeted failures at meaningful boundaries, not random process kills.
+**Simulated.** The payments API and the repo are local. Faults are injected, not observed. This is by design: targeted failures at meaningful boundaries, not random process kills.
 
 **Real, against a live service.** `interlock/targets/stripe_api.py` is a Stripe refunds target (test-mode keys only, standard library only), and experiment 3 runs the refund faults against it.
 
 **Not built yet.** A real GitHub target. A journal that isn't a local file. Premise extraction beyond file hashes and function arity. A notary that both sides write to, so tier 3 services can be lifted to tier 2 without changing their API.
 
 **Out of scope, on purpose.** Whether the agent's decision was *right*. A faithfully executed bad refund is still a bad refund. Interlock controls effects, not judgment.
-
-## Next test
-
-Swap `LocalRepo` for a real `gh pr merge` target and measure how often the gate must return `AMBIGUOUS` when the merge API response is dropped, versus when GitHub's merge-commit lookup is used as the tier-2 query. The ratio is the availability cost of running without a cooperating target.
 
 ## Repo map
 
@@ -392,20 +408,13 @@ results/             the tables above, as markdown and json
 viewer/              index.html replays real journals as an animated trace; build.py writes traces.js
 tests/               every README claim as an assertion, a 2,000-case fault sweep, the decorator through a restart
 docs/
-  00-the-whole-story.md      the narrative: root → decisions → field → business
-  interlock-explained.html   the same story as an interactive page
   01-problem.md      the root, from three lines of code to the four facts
   02-contract.md     invariants, failure model, cooperation ladder, baselines
   03-landscape.md    who owns which layer; the positions we disagree with
   04-integration.md  the EffectTarget adapter; LangGraph / MCP / Temporal; the notary
   05-reading.md      what we read and what each paper hands you
-  checkpoints/       what was submitted, what was scored, what changed
 demo.py              one refund, one crash, one receipt
 ```
-
-## How this came together
-
-Saturday we wrote two specs that looked like different projects: one refund, at most once, and concurrency control for parallel coding agents. Sunday morning we noticed they were the same mechanism pointed at two targets, built the core once, and ran both.
 
 ## References
 
@@ -424,4 +433,7 @@ The ones the results lean on. The full list with notes is in `docs/05-reading.md
 - Mosaic (2026). The Coordination Problem. The "retry is free" assumption the coding half disputes.
 - Anthropic (2025). How we built our multi-agent research system. The 4×/15× token figures.
 
-Interlock — Battle of the Coasts 2026, Cloud AI track, Boston. MIT licensed. Fork it, break it, tell us which row is wrong.
+
+---
+
+Interlock Civic, a Hackachusetts entry (Civic Services track). MIT licensed, built on the Interlock prototype.

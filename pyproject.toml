@@ -15,7 +15,7 @@ dependencies = []
 temporal = ["temporalio>=1.0"]
 
 [project.urls]
-Repository = "https://github.com/az-said/Interlock"
+Repository = "https://github.com/shawnzhu02/interlock-civic"
 
 [project.scripts]
 interlock-mcp = "interlock.mcp_proxy:main"

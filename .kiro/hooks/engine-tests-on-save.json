@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Engine tests on save",
+      "description": "When an engine file is saved, run the core contract, gate and receipt tests (about a minute). The full suite runs in CI.",
+      "trigger": "PostFileSave",
+      "matcher": "interlock[/\\\\].*\\.py$",
+      "action": {
+        "type": "command",
+        "command": "python -X utf8 -m unittest tests.test_contract tests.test_interlock tests.test_receipts -q"
+      },
+      "timeout": 300
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "stripe": {
+      "url": "https://mcp.stripe.com",
+      "disabled": false,
+      "autoApprove": ["stripe_api_search", "stripe_api_details", "stripe_api_read", "search_stripe_documentation"]
+    },
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      },
+      "disabled": false
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "disabled": false,
+      "autoApprove": ["fetch"]
+    },
+    "civic-office-gated": {
+      "command": "python",
+      "args": ["-m", "interlock.mcp_proxy", "--config", ".kiro/settings/interlock.mcp.json", "--", "python", "-m", "backend.civic_mcp_server"],
+      "disabled": true
+    }
+  }
+}

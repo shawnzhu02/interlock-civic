@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Regenerate results",
+      "description": "When an experiment changes, regenerate results/ and the viewer data so the tables never drift from the code. CI fails on drift.",
+      "trigger": "PostFileSave",
+      "matcher": "experiments[/\\\\].*\\.py$",
+      "action": {
+        "type": "command",
+        "command": "python -X utf8 experiments/run_all.py && python -X utf8 viewer/build.py"
+      },
+      "timeout": 180
+    }
+  ]
+}
