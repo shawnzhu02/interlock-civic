@@ -1,0 +1,172 @@
+[INFO] kas.server.starting {"product":"KAS (Kiro Agent Server)","version":"0.66.62"}
+[INFO] Auth: --auth=acp-callback (host-mediated refresh via _kiro/auth/getAccessToken)
+[INFO] acp.content_collection.resolved {"enabled":true}
+[INFO] acp.remote_sessions.enabled {"endpoint":"https://app.kiro.dev"}
+[INFO] [KiroAgent] MCP subsystem initialized
+[INFO] memory.sync.organizationDecision {"decision":"unknown"}
+[ERROR] (node:10156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"user","durationMs":1}
+[INFO] fs.workflow.recipes.readDir.ok {"system":"fs","tier":"cloud","durationMs":5}
+[INFO] fs.workflow.recipeCatalog.refreshShared.ok {"system":"fs","trigger":"startup","durationMs":14}
+[WARN] [mcp-sdk] SEP-2352: stored OAuth credential has no 'issuer' stamp (pre-upgrade storage or provider not round-tripping the value). SEP-2352 isolation is inactive for this read; ensure your provider round-trips the issuer field.
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=9
+I'll start by reading the required files in parallel.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me read the test file, requirements, design, and the relevant engine pieces.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now let me look at the gate and journal internals to understand the APIs I need (submit, recover, crash flags, receipt_bundle, and the backend refunds structure).
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I have enough understanding of the engine. The scenario test already demonstrates the patterns I need: `office.submit`, `inbox.capture`, `inbox._proposal`, `inbox.gate.submit(proposal, crash_after_effect=...)`, `inbox.gate.recover(now=...)`, `effect_id_for`, `backend.refunds`, `receipt_bundle`, `verify`. Let me quickly check the `_proposal` signature and `set_status`/`add_case` signatures in case_store, plus the payment_rail backend.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Grep Search
+[tool] status: InProgress
+[tool] status: Completed
+I have everything I need. Note `_proposal` takes `(request, authority, facts)` and uses `request["id"]` for the request_id, so `effect_id_for({"request_id": request["id"]})` gives the effect id. Let me look at the `submit`/`_submit` flow briefly to confirm how committed happens and how the authority/lease is granted for a direct gate submit.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+I have a full understanding. For the "concurrency" property (10.3), the cleanest approach reuses `office.submit` for assistant requests and `office.ledger.record` for caseworker hand reissues, mirroring test_c. For "at most one effect" (10.2), I'll use the direct gate path (capture/_proposal/submit with crash flags + recover + duplicate submits) mirroring test_e. For "receipts never overclaim" (10.4), I'll generate histories that never confirm and assert `executed` is never True.
+
+Let me check the policy authority used by `_submit` so direct-gate proposals pass the lease check. In test_d/test_e they use `{"by": "policy", "rules": []}` as the authority. Good.
+
+Now I'll write the test file.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+I left a messy leftover assertion in the concurrency test. Let me clean up property 10.3 to a single clear invariant before running.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now I need to verify that `office.submit` actually records to the ledger when a reissue commits (so `recorded_total` reflects gate sends). Let me check the payment_rail target's `apply`.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+The payment_rail's `apply` does NOT record to the ledger — it only sends to the backend (refunds list). So `recorded_total` from the ledger won't reflect gate sends. That means my 10.3 invariant using `recorded_total` wouldn't capture assistant-paid amounts. Let me reconsider: for the concurrency property, total paid should combine rail refunds (assistant) + ledger hand reissues.
+
+Let me check whether committing a reissue records anything in the ledger anywhere (the office might record on confirm, but this spec is pre-action only). Given the rail doesn't touch the ledger, I'll compute total paid as rail refunds (assistant, amount per refund) + ledger reissue entries (hand). Let me fix 10.3 accordingly.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now add hypothesis to pyproject dev dependencies.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now run the tests. First check if hypothesis is installed.
+[tool] Run the new property-based tests
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run the new property-based tests
+Hypothesis is installed and running (lots of generated examples). The noise is stderr log lines. Exit code 1 means a failure or just the stderr being treated as error. Let me capture the actual test result tail cleanly by redirecting stderr to a file.
+[tool] Run property tests capturing the result summary
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Two failures. Let me get the full shrunk counterexamples.
+[tool] Extract the shrunk falsifying examples
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now I have both shrunk counterexamples. Let me analyze each.
+
+**10.3 counterexample: `steps=['assistant', 'assistant']`, entitlement=412.** Two assistant reissues both reached the rail (rail 824). This means the one-reissue-per-period rule did NOT block the second assistant reissue. Why? Because the payment rail never records to the ledger, so `ledger.reissues_for` stays 0 after the first assistant commit. The rule only counts ledger entries, and committed gate sends don't write to the ledger. So the assistant can reissue repeatedly.
+
+This is a real gap, but is it in scope / a small fix? The rule reads `self.ledger.reissues_for`. The design intends "counting all sources from the ledger/rail." The rail's `query`/`backend.refunds` is the rail's record. The `at_most_one_reissue` capture reads `self.ledger.reissues_for(case_id, period)` only — it doesn't count prior rail refunds. 
+
+Per instructions: fix only if the fix is small and the existing suite still passes; otherwise mark expectedFailure with the counterexample. Let me check: the office's `capture` for reissue sets `prior_reissues = self.ledger.reissues_for(...)`. A small fix would be to also count prior committed reissues in the payment rail for that period. But the rail refunds are keyed by eid, not case/period directly — effect carries case_id/period. Let me check the refund entry shape and whether a small fix is safe.
+
+**10.4 counterexample: `kind='crash_before'`.** After crash_before_effect and recover(), executed came out True. That's surprising — crash_before means the in-flight marker was written but the request never sent. On recovery, tier-1 idempotent retry re-sends and commits. So the effect DID actually land on recovery (recovery re-applies for tier 1 when premises hold). So `executed=True` is actually correct — a system of record (the rail) confirmed it. My property premise ("no confirmation") is wrong for crash_before: recovery legitimately completes the effect. So the property as written is too strong; the fix is to remove `crash_before` from the unconfirmed-history cases (it is a confirmed history after recovery). This is a test bug, not a code bug.
+
+Let me verify the crash_before+recover actually produces a refund.
+[tool] Check crash_before then recover outcome and rail refunds
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Check crash_before then recover outcome and rail refunds
+Confirmed: crash_before + recover legitimately commits the effect (COMMITTED_BY_RETRY), a refund lands, and `executed=True` is correct. So the 10.4 counterexample is a test-spec error on my part: `crash_before` is not an "unconfirmed history." I'll remove it. The property itself (receipts never overclaim without confirmation) holds for genuinely unconfirmed histories.
+
+The refund entry has `case_id` and `period`. So for 10.3, a small, safe fix is available: count prior reissues across both the ledger AND the payment rail's committed refunds for the period. Let me examine the office `capture` and `at_most_one_reissue` more carefully to make a minimal fix. The rail is `office.payment_rail`; its backend has `refunds` with `case_id`/`period`. But the engine shouldn't reach into the backend directly from the office capture ideally — however the office already reads `self.ledger` and `self.case_store`. Adding a rail count in capture is small.
+
+But wait — instructions say "Touch no other files." I can only touch `tests/test_civic_properties.py`, `pyproject.toml`, and `tasks.md`. I cannot edit `office.py` or `payment_rail.py`. So I cannot fix the 10.3 code gap. Therefore 10.3 must be marked `expectedFailure` with the counterexample recorded.
+
+Let me reconsider whether 10.3 is truly a real defect or whether my test models "total paid" wrong. The one-reissue-per-period rule counts from the ledger. In the real system, a committed reissue would be recorded to the ledger by the confirm/record step (Spec 2, outcome tracking) — but this spec is pre-action only and the rail doesn't record. In the hand-vs-assistant interleaving, the rule DOES block a second reissue after a *hand* reissue (which is in the ledger), but does NOT block a second *assistant* reissue because assistant sends never hit the ledger. That is a genuine gap in the current code for assistant-vs-assistant, and the generated counterexample `['assistant','assistant']` exposes it honestly.
+
+Per instructions, since I can't touch other files, I mark 10.3 as expectedFailure with the counterexample. Let me update the test file: fix 10.4 (remove crash_before), mark 10.3 expectedFailure.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now fix 10.4: remove `crash_before` (a confirmed-on-recovery history, not an unconfirmed one) and update the docstring.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now remove the `crash_before` branch from the test body.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now re-run the property tests.
+[tool] Re-run property tests after fixes
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+All three run cleanly: two pass, one expected failure (the real counterexample). Let me confirm which test maps to which result by checking the verbose names.
+[tool] Show per-test verbose result lines
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The order in output was: `test_at_most...` (ok), `test_executed...` (ok), `test_total_paid...` (expected failure). Now let me verify I didn't break the existing suite by running the full test discovery quickly.
+[tool] Run the existing civic case-actions unit suite
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Existing suite still passes (7 tests, OK). Now update tasks.md: tick 10.1 (setup), 10.2 (passes), 10.4 (passes). Leave 10.3 unchecked (expected failure due to real counterexample).
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+All done. Final verification run of the property module to confirm the state.
+[tool] Final confirmation run of the property tests
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Done. Task 10 is complete.
+
+## Summary
+
+I wrote `tests/test_civic_properties.py` with three Hypothesis property tests driving the real engine through `CivicOffice` (simulated systems, simulated tier-1 rail, no network). Hypothesis is a dev-only dep: the import is wrapped in try/except, the module skips cleanly when missing (like `HAS_TEMPORAL`), and `hypothesis>=6.0` was added to `[project.optional-dependencies] dev` in `pyproject.toml`. Each example uses a fresh temp dir and a fixed, injected clock; `max_examples=60, deadline=None`. Full run: ~6s, well under 60s.
+
+Command run: `python -X utf8 -m unittest tests.test_civic_properties -v` → `OK (expected failures=1)`. The existing suite (`tests/test_civic_case_actions.py`, 7 tests) still passes.
+
+| Property | Examples | Result | Counterexample |
+|---|---|---|---|
+| 10.2 at most one effect | 60 | PASS | — |
+| 10.3 rules hold under concurrency | 60 | FAIL (expectedFailure) | `steps=['assistant','assistant'], entitlement=412, jump=0` → total paid 824 > 412 |
+| 10.4 receipts never overclaim | 60 | PASS | — |
+
+**10.2** — For crash none/before/after × duplicate deliveries 0–3 × extra `recover()` 0–3 × clock jumps, each effect id yields at most one refund in the rail and at most one `COMMITTED` journal entry, and the receipt still verifies. Passes.
+
+**10.3** — Hypothesis found a genuine counterexample: two assistant reissues for the same `(case, period)` both reach the rail (824 > 412). Root cause: `at_most_one_reissue` counts prior reissues from the **ledger** only (`CivicOffice.capture` → `ledger.reissues_for`), but a committed assistant reissue goes to the rail and is **not** written to the ledger in this pre-action spec (`PaymentRail.apply` touches only `backend.refunds`; ledger recording is Spec 2). So the second assistant reissue sees `prior_reissues == 0` and sends. The hand/assistant mix is correctly bounded; assistant/assistant is not. The fix (count prior reissues from the rail too) lives in `office.py`/`payment_rail.py`, which this task is scoped not to touch — so I did **not** weaken the property. I recorded the shrunk counterexample in a comment, marked the test `@unittest.expectedFailure`, and left task 10.3 unchecked in `tasks.md`.
+
+**10.4** — For refused-by-rule (over-entitlement, duplicate, ineligible) and stale-premise (closed mid-decision) histories, `executed` is never `True` and no refund reaches the rail. An earlier draft wrongly included a crash-before + `recover()` case; Hypothesis falsified it (`kind='crash_before'` → `executed=True`). That is correct behavior, not an overclaim — recovery re-sends a tier-1 effect idempotently and the refund genuinely lands — so I removed it from the unconfirmed-history set and documented why. Passes.
+
+Files touched: `tests/test_civic_properties.py` (new), `pyproject.toml` (dev dep), `.kiro/specs/civic-case-actions/tasks.md` (ticked 10.1/10.2/10.4, annotated 10.3). Temp files were written to `$env:TEMP` only. Ticked 10.x only for passing properties.

@@ -67,11 +67,11 @@ satisfies.
     - _Requirements: 1.1, 1.2, 3.3, 4.3, 5.2, 5.4, 6.2, 7.1, 7.2, 7.3, 7.4, 9.1, 9.3_
 
 - [ ] 10. Property-based tests (`tests/test_civic_properties.py`, Hypothesis dev-only)
-  - [ ] 10.1 Set up Hypothesis as a dev-only dependency that skips cleanly when missing, following the `HAS_TEMPORAL` pattern in `tests/test_explained.py`.
+  - [x] 10.1 Set up Hypothesis as a dev-only dependency that skips cleanly when missing, following the `HAS_TEMPORAL` pattern in `tests/test_explained.py`.
     - _Requirements: 10.1_
-  - [ ] 10.2 Property "at most one effect": for any crash schedule and duplicate delivery, each effect id has at most one committed effect in its target.
+  - [x] 10.2 Property "at most one effect": for any crash schedule and duplicate delivery, each effect id has at most one committed effect in its target. (Passes: 60 examples, crash none/before/after x duplicates 0-3 x recover 0-3 x clock jump.)
     - _Requirements: 10.2, 10.5_
-  - [ ] 10.3 Property "rules hold under concurrency": for any interleaving of assistant and caseworker on one `(case, period)`, total paid never exceeds the entitlement.
+  - [ ] 10.3 Property "rules hold under concurrency": for any interleaving of assistant and caseworker on one `(case, period)`, total paid never exceeds the entitlement. (FAILS - Hypothesis counterexample `steps=['assistant','assistant'], entitlement=412` => total paid 824 > 412. The one-reissue-per-period rule counts the ledger only, but a committed assistant reissue goes to the rail and is not recorded in the ledger in this pre-action spec, so a second assistant reissue is not blocked. Fix lives in `office.py`/`payment_rail.py` (count prior reissues from the rail too), which task 10 is scoped not to touch; test marked `expectedFailure`. Left unchecked.)
     - _Requirements: 10.3, 10.5_
-  - [ ] 10.4 Property "receipts never overclaim": for any unconfirmed history, the receipt's `executed` is never `True`.
+  - [x] 10.4 Property "receipts never overclaim": for any unconfirmed history, the receipt's `executed` is never `True`. (Passes: 60 examples over refused-by-rule and stale-premise histories. A crash-before + recover history was deliberately excluded: recovery legitimately commits the effect, so `executed=True` is correct there, not an overclaim.)
     - _Requirements: 10.4, 10.5_
