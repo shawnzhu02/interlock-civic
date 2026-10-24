@@ -5,34 +5,34 @@ Every task reuses the existing engine (`interlock/gate.py`,
 `.kiro/steering/`. No new state machine. Each task lists the requirements it
 satisfies.
 
-- [ ] 1. Scaffold the simulated systems of record under `backend/civic/`
-  - [ ] 1.1 Create `backend/civic/case_store.py`: SQLite-backed residents, cases, per-period entitlements, eligibility/active flags, mailing address, assigned caseworker, and fraud flag, with read helpers `entitlement`, `status`, `address`, `caseworker`, `fraud_flagged`. Label the store as simulated in names and any log lines. Inject `clock=`.
+- [x] 1. Scaffold the simulated systems of record under `backend/civic/`
+  - [x] 1.1 Create `backend/civic/case_store.py`: SQLite-backed residents, cases, per-period entitlements, eligibility/active flags, mailing address, assigned caseworker, and fraud flag, with read helpers `entitlement`, `status`, `address`, `caseworker`, `fraud_flagged`. Label the store as simulated in names and any log lines. Inject `clock=`.
     - _Requirements: 2.1, 2.2, 2.5_
-  - [ ] 1.2 Create `backend/civic/ledger.py`: append-only payments/refunds with `reissues_for(case_id, period)` and `recorded_total(case_id, period)` that count entries from any source. Label as simulated.
+  - [x] 1.2 Create `backend/civic/ledger.py`: append-only payments/refunds with `reissues_for(case_id, period)` and `recorded_total(case_id, period)` that count entries from any source. Label as simulated.
     - _Requirements: 2.1, 2.3, 2.5, 4.2_
-  - [ ] 1.3 Create `backend/civic/scheduler_store.py`: SQLite bookings looked up by a reference tied to an effect id. Label as simulated.
+  - [x] 1.3 Create `backend/civic/scheduler_store.py`: SQLite bookings looked up by a reference tied to an effect id. Label as simulated.
     - _Requirements: 2.1, 2.4, 2.5_
 
-- [ ] 2. Build the civic targets in `interlock/targets/civic/`, modeled on `targets/payments.py`
-  - [ ] 2.1 Create `payment_rail.py` (tier 1) backing `reissue_payment` and `refund_fee`: `apply` sends a refund using `eid` as the Stripe Idempotency-Key (reuse `Payments(tier=1)` in simulation, `stripe_api` in live/test-key mode), `query` lists by `eid`, and `explain(premises, eid, effect)` returns `{violations, changes, repairs}` over entitlement, eligibility/active, and prior reissues. State it is tier 1 and that the Stripe test PaymentIntent is a stand-in.
+- [x] 2. Build the civic targets in `interlock/targets/civic/`, modeled on `targets/payments.py`
+  - [x] 2.1 Create `payment_rail.py` (tier 1) backing `reissue_payment` and `refund_fee`: `apply` sends a refund using `eid` as the Stripe Idempotency-Key (reuse `Payments(tier=1)` in simulation, `stripe_api` in live/test-key mode), `query` lists by `eid`, and `explain(premises, eid, effect)` returns `{violations, changes, repairs}` over entitlement, eligibility/active, and prior reissues. State it is tier 1 and that the Stripe test PaymentIntent is a stand-in.
     - _Requirements: 1.3, 1.5, 2.6, 3.1, 3.2, 4.1, 4.2, 5.1, 5.3_
-  - [ ] 2.2 Create `scheduler.py` (tier 2) backing `book_appointment`: `apply` writes a booking referenced by `eid`, `query` looks it up by that reference, `explain` reports relevant premise changes.
+  - [x] 2.2 Create `scheduler.py` (tier 2) backing `book_appointment`: `apply` writes a booking referenced by `eid`, `query` looks it up by that reference, `explain` reports relevant premise changes.
     - _Requirements: 1.4, 1.5, 2.4_
-  - [ ] 2.3 Create `case_records.py` (tier 2) backing `change_address`: `apply` writes the new address tagged with `eid`, `query` confirms whether the `eid`-tagged change landed, `explain` reports eligibility/closed or address-changed-elsewhere.
+  - [x] 2.3 Create `case_records.py` (tier 2) backing `change_address`: `apply` writes the new address tagged with `eid`, `query` confirms whether the `eid`-tagged change landed, `explain` reports eligibility/closed or address-changed-elsewhere.
     - _Requirements: 1.4, 1.5, 5.3_
 
-- [ ] 3. Build the `CivicOffice` facade in `backend/civic/office.py`
-  - [ ] 3.1 For each action define `effect(request)` and `capture(request)` that reads premises (entitlement, eligible/active, address, caseworker, prior reissues, fraud) from the systems of record, never from the assistant. Derive the effect id from the request via `effect_id_for`.
+- [x] 3. Build the `CivicOffice` facade in `backend/civic/office.py`
+  - [x] 3.1 For each action define `effect(request)` and `capture(request)` that reads premises (entitlement, eligible/active, address, caseworker, prior reissues, fraud) from the systems of record, never from the assistant. Derive the effect id from the request via `effect_id_for`.
     - _Requirements: 1.1, 1.2, 8.4_
-  - [ ] 3.2 Wire one `Inbox(gate, capture, effect, rules, routes, clock=)` per action family, each over its own `Gate` and target; build proposals as `{agent, lease, premises, effect, request}`. Reuse the engine; add no second decision/state machine.
+  - [x] 3.2 Wire one `Inbox(gate, capture, effect, rules, routes, clock=)` per action family, each over its own `Gate` and target; build proposals as `{agent, lease, premises, effect, request}`. Reuse the engine; add no second decision/state machine.
     - _Requirements: 1.1, 1.6, 7.5_
 
-- [ ] 4. Implement the pre-action rules as `approvals.Rule`
-  - [ ] 4.1 `within entitlement`: `request.amount <= facts.entitlement`; failure refuses before send and names the entitlement limit and facts read. Cover the $4,120-on-$412 case.
+- [x] 4. Implement the pre-action rules as `approvals.Rule`
+  - [x] 4.1 `within entitlement`: `request.amount <= facts.entitlement`; failure refuses before send and names the entitlement limit and facts read. Cover the $4,120-on-$412 case.
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 7.5_
-  - [ ] 4.2 `at most one reissue per period`: `facts.prior_reissues == 0`, counting all sources from the ledger/rail (including a caseworker by hand).
+  - [x] 4.2 `at most one reissue per period`: `facts.prior_reissues == 0`, counting all sources from the ledger/rail (including a caseworker by hand).
     - _Requirements: 4.1, 4.2, 4.4, 7.5_
-  - [ ] 4.3 `case eligible and active`: `facts.eligible and facts.active`.
+  - [x] 4.3 `case eligible and active`: `facts.eligible and facts.active`.
     - _Requirements: 5.1, 7.5_
 
 - [ ] 5. Enforce the send-time and recovery checks through the gate (not a bespoke check)
