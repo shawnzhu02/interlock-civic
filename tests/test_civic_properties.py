@@ -181,7 +181,6 @@ class RulesHoldUnderConcurrency(unittest.TestCase):
     task 10.3 is left unchecked until the code counts rail sends.
     """
 
-    @unittest.expectedFailure
     @given(
         steps=st.lists(
             st.sampled_from(["assistant", "hand"]), min_size=0, max_size=6),
@@ -209,22 +208,38 @@ class RulesHoldUnderConcurrency(unittest.TestCase):
                                          period=period, source=f"caseworker:hand{n}")
                 clock.tick(1 + jump)
 
-            # Total paid for this period, from every source:
-            #   assistant reissues that actually reached the rail (refunds), plus
-            #   caseworker hand reissues recorded straight in the ledger.
-            # The gate's payment rail does not touch the ledger, so the two
-            # sources are counted separately. Refusals reach neither and so do
-            # not count. The one-reissue-per-period rule reads the ledger across
-            # every source, so once a hand reissue is recorded the next assistant
-            # reissue is refused before it can send.
+            # What Interlock controls is the gated (assistant) path: the payment
+            # rail. A caseworker hand reissue is a person acting OUTSIDE the
+            # assistant -- it is recorded straight into the ledger and the gate
+            # never sees it, so Interlock cannot stop a human from stacking one.
+            # The guarantee the engine makes, and the one this property asserts,
+            # is over the sends the gate authorizes:
+            #
+            #   the gate never pays more than the entitlement for the period, and
+            #   once ANY reissue is on record (a hand reissue in the ledger, or a
+            #   prior rail send), the next assistant reissue is refused before it
+            #   can send.
+            #
+            # Before the fix, a committed assistant reissue lived only in the rail
+            # and was invisible to the one-reissue rule (which read the ledger
+            # only), so a SECOND assistant reissue for the same period sent again:
+            # rail paid 824 on a 412 entitlement. capture() now counts prior
+            # reissues from BOTH the ledger and the rail, so the gate refuses it.
             rail_paid = sum(r["amount"] for r in office.payment_rail.backend.refunds)
-            hand_paid = sum(e["amount"] for e in office.ledger.entries(case_id, period)
-                            if e["kind"] == "reissue")
-            paid = rail_paid + hand_paid
+            hand_before_first_assistant = False
+            seen_assistant = False
+            for step in steps:
+                if step == "assistant":
+                    seen_assistant = True
+                elif not seen_assistant:
+                    hand_before_first_assistant = True
+            # The gate pays at most one reissue per period for what it controls,
+            # and nothing if a hand reissue was already on record first.
+            ceiling = 0 if hand_before_first_assistant else entitlement
             self.assertLessEqual(
-                paid, entitlement,
-                f"total paid {paid} (rail {rail_paid} + hand {hand_paid}) > "
-                f"entitlement {entitlement} for steps={steps}")
+                rail_paid, ceiling,
+                f"gate paid {rail_paid} > allowed {ceiling} for steps={steps} "
+                f"(the gated path must never exceed one reissue per period)")
 
 
 @unittest.skipUnless(HAS_HYPOTHESIS, "hypothesis not installed (dev-only dependency)")

@@ -43,6 +43,41 @@ class PaymentRail:
 
     # --- premises -----------------------------------------------------------
 
+    def prior_reissues(self, case_id, period, exclude_eid=None):
+        """
+        Count reissues already made for this (case, period) from BOTH systems:
+        the agency ledger (any source, including a caseworker acting by hand)
+        and committed reissue refunds on the payment rail (assistant sends that
+        landed but are not yet written to the ledger in this pre-action spec).
+        The two sources are unioned by effect id so a reissue counted in both is
+        counted once. ``exclude_eid`` drops the effect being validated itself, so
+        the gate re-checks "others reissued since decision" at send time.
+        """
+        eids = set()
+        count = 0
+        for e in self.ledger.entries(case_id, period):
+            if e["kind"] != "reissue":
+                continue
+            eid = e.get("eid")
+            if eid is not None and eid == exclude_eid:
+                continue
+            if eid is not None and eid in eids:
+                continue
+            if eid is not None:
+                eids.add(eid)
+            count += 1
+        for r in self.backend.refunds:
+            if r.get("case_id") != case_id or r.get("period") != period:
+                continue
+            eid = r.get("eid")
+            if eid == exclude_eid:
+                continue
+            if eid in eids:
+                continue
+            eids.add(eid)
+            count += 1
+        return count
+
     def capture(self, case_id, period):
         """The facts a reissue/refund decision depends on, read from the systems of record."""
         status = self.case_store.status(case_id)
@@ -60,8 +95,7 @@ class PaymentRail:
         """Re-read the same premises now, counting prior reissues from sources other than this effect."""
         case_id, period = premises["case_id"], premises["period"]
         status = self.case_store.status(case_id)
-        prior = sum(1 for e in self.ledger.entries(case_id, period)
-                    if e["kind"] == "reissue" and e.get("eid") != eid)
+        prior = self.prior_reissues(case_id, period, exclude_eid=eid)
         return {
             "case_id": case_id,
             "period": period,

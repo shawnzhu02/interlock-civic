@@ -194,7 +194,7 @@ class CivicOffice:
             period = request["period"]
             facts["period"] = period
             facts["entitlement"] = self.case_store.entitlement(case_id, period)
-            facts["prior_reissues"] = self.ledger.reissues_for(case_id, period)
+            facts["prior_reissues"] = self.payment_rail.prior_reissues(case_id, period)
         elif action == "refund_fee":
             # A fee refund has no period; the entitlement ceiling still applies.
             period = request.get("period")
