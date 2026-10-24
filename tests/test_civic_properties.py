@@ -39,6 +39,19 @@ try:
 except ImportError:
     HAS_HYPOTHESIS = False
 
+    # Stand-ins so the decorators below still evaluate; the classes are skipped.
+    class _Anything:
+        def __getattr__(self, name):
+            return lambda *a, **k: None
+
+    st = _Anything()
+
+    def settings(*a, **k):
+        return lambda f: f
+
+    def given(*a, **k):
+        return lambda f: f
+
 if HAS_HYPOTHESIS:
     from backend.civic.office import CivicOffice
     from interlock.gate import SimulatedCrash
