@@ -71,8 +71,6 @@ The base engine's authors measured it on refunds, and the mechanism is the same 
 
 It is tested against itself. Writing the base engine's tests found 15 real bugs in its gate, and each fix has a test that failed before the fix. [tests/README.md](tests/README.md) lists every test and experiment.
 
-**Credit.** The engine is the MIT-licensed Interlock prototype ([github.com/az-said/Interlock](https://github.com/az-said/Interlock)) by its original authors. Its measurements, its bug counts, and the "we" in the engine documentation below are theirs. New in this repository, built with Kiro: `backend/civic/`, `interlock/targets/civic/`, `experiments/civic_story.py`, `demo/civic.html`, the civic tests, and the spec in `.kiro/specs/`. The rest of this README documents the base engine as it stands.
-
 ---
 
 ## What it is
