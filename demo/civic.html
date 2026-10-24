@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- animated-v2 -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Interlock Civic — Riverside County Benefits Office (fictional)</title>
+<title>Interlock Civic — step-through (fictional office, simulated systems)</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -12,176 +13,242 @@
     --line: #c9d4de;
     --panel: #f4f7fa;
     --accent: #0b5cad;
-    --ok-bg: #e2f3e6;
-    --ok-fg: #184d28;
-    --warn-bg: #fdf0da;
-    --warn-fg: #6b4304;
-    --stop-bg: #fbe3e3;
-    --stop-fg: #7a1f1f;
+    --ok-bg: #d8f0de;   --ok-fg: #0f3d1e;   --ok-line: #2f9b4e;
+    --warn-bg: #fbe8c6; --warn-fg: #5a3800; --warn-line: #c98a12;
+    --stop-bg: #f7d7d7; --stop-fg: #611616; --stop-line: #c23434;
     --focus: #0b5cad;
+    --anim: 1;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0e151c;
-      --fg: #eaf1f7;
-      --muted: #aebccb;
+      --bg: #0b1218;
+      --fg: #eef4f9;
+      --muted: #b4c2d0;
       --line: #2d3b49;
-      --panel: #16202b;
-      --accent: #7fb6ec;
-      --ok-bg: #16331e;
-      --ok-fg: #b6e6c1;
-      --warn-bg: #3a2c10;
-      --warn-fg: #f3d49a;
-      --stop-bg: #3a1a1a;
-      --stop-fg: #f2b5b5;
-      --focus: #7fb6ec;
+      --panel: #161f29;
+      --accent: #8cc1f2;
+      --ok-bg: #123320;   --ok-fg: #a7e8ba;   --ok-line: #37b25c;
+      --warn-bg: #3a2b0e; --warn-fg: #f6d79a; --warn-line: #e0a93a;
+      --stop-bg: #3a1616; --stop-fg: #f6b4b4; --stop-line: #e06060;
+      --focus: #8cc1f2;
     }
   }
   * { box-sizing: border-box; }
-  html { font-size: 17px; }
+  html { font-size: 18px; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--fg);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.55;
+    line-height: 1.5;
   }
-  a { color: var(--accent); }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 1rem; }
   .banner {
     background: var(--warn-bg);
     color: var(--warn-fg);
-    border-bottom: 2px solid var(--line);
-    padding: 0.75rem 1rem;
-    font-size: 0.95rem;
-  }
-  .banner strong { font-weight: 700; }
-  header h1 { font-size: 1.5rem; margin: 1rem 0 0.25rem; }
-  header p.sub { color: var(--muted); margin: 0 0 1rem; }
-  .picker { margin: 1rem 0 1.5rem; }
-  .picker label { display: block; font-weight: 700; margin-bottom: 0.4rem; }
-  .picker select {
-    width: 100%;
-    padding: 0.6rem;
+    border-bottom: 2px solid var(--warn-line);
+    padding: 0.7rem 1rem;
     font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  h1 { font-size: 1.6rem; margin: 1rem 0 0.75rem; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1rem; }
+  .tab {
+    display: inline-flex; align-items: baseline; gap: 0.4rem;
     border: 2px solid var(--line);
-    border-radius: 8px;
-    background: var(--bg);
+    background: var(--panel);
     color: var(--fg);
-  }
-  .context {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 0.9rem 1.1rem;
-    margin-bottom: 1.25rem;
-  }
-  .context dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; }
-  .context dt { font-weight: 700; color: var(--muted); }
-  .context dd { margin: 0; }
-  .outcome-tag {
-    display: inline-block;
-    font-weight: 700;
-    padding: 0.15rem 0.6rem;
     border-radius: 999px;
-    font-size: 0.9rem;
+    padding: 0.45rem 0.95rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
   }
-  .panels { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
-  @media (min-width: 820px) { .panels { grid-template-columns: 1fr 1fr 1fr; } }
-  .panel {
-    border: 1px solid var(--line);
-    border-radius: 12px;
+  .tab .key { font-family: ui-monospace, Consolas, monospace; font-weight: 800; color: var(--accent); text-transform: uppercase; }
+  .tab[aria-selected="true"] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #fff;
+  }
+  .tab[aria-selected="true"] .key { color: #fff; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1.25rem; }
+  .btn {
+    border: 2px solid var(--accent);
+    background: var(--bg);
+    color: var(--accent);
+    border-radius: 10px;
+    padding: 0.6rem 1.2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin: 0 0 1.5rem;
+  }
+  .card {
+    flex: 1 1 180px;
+    min-width: 160px;
+    border: 2px solid var(--line);
+    border-radius: 16px;
     background: var(--panel);
-    padding: 1rem 1.1rem;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0;
   }
-  .panel h2 { font-size: 1.15rem; margin: 0 0 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
-  .panel h2 .dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--accent); }
-  .status-card { border-radius: 10px; padding: 0.85rem; margin-bottom: 0.5rem; }
-  .status-card.recorded { background: var(--ok-bg); color: var(--ok-fg); }
-  .status-card.checking { background: var(--warn-bg); color: var(--warn-fg); }
-  .status-card.hold { background: var(--stop-bg); color: var(--stop-fg); }
-  .status-card h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
-  .status-card p { margin: 0; }
-  .state-line { font-weight: 700; margin-top: 0.5rem; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
-  th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); }
-  .empty { color: var(--muted); font-style: italic; }
-  ul.changes { margin: 0.5rem 0 0; padding-left: 1.1rem; }
-  ul.changes li { margin-bottom: 0.25rem; }
-  .fix { background: var(--bg); border: 1px dashed var(--line); border-radius: 8px; padding: 0.6rem 0.75rem; margin-top: 0.75rem; }
-  .fix strong { display: block; margin-bottom: 0.25rem; }
-  .timeline { list-style: none; margin: 0; padding: 0; }
-  .timeline li { padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
-  .timeline li:last-child { border-bottom: 0; }
-  .kind { font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .kind.COMMITTED { color: var(--ok-fg); }
-  .kind.REFUSED, .kind.AMBIGUOUS { color: var(--stop-fg); }
-  .kind.ESCALATED { color: var(--warn-fg); }
-  .hash { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.82rem; }
-  .note { color: var(--muted); display: block; font-size: 0.9rem; }
-  .facts-grid { display: grid; grid-template-columns: max-content max-content; gap: 0.35rem 1rem; margin-top: 0.5rem; }
-  .facts-grid dt { color: var(--muted); }
-  .facts-grid dd { margin: 0; font-weight: 700; }
-  .four-facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0 0 0.75rem; }
-  .four-facts dt { color: var(--muted); }
-  .four-facts dd { margin: 0; font-weight: 700; }
-  .verified { font-weight: 700; }
-  .verified.yes { color: var(--ok-fg); }
-  .verified.no { color: var(--stop-fg); }
-  .limit-note { margin-top: 1rem; padding: 0.75rem 1rem; border-left: 4px solid var(--accent); background: var(--panel); border-radius: 0 8px 8px 0; }
-  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  .card.shown { opacity: 1; animation: reveal 0.4s ease both; }
+  .card.crash.shown { animation: reveal 0.4s ease both, shake 0.5s 0.4s ease; border-color: var(--stop-line); }
+  .card .emoji { font-size: 2.6rem; line-height: 1; }
+  .card .role { font-size: 0.85rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .card .caption { font-size: 1.25rem; font-weight: 800; }
+  .badge {
+    display: inline-block;
+    font-weight: 800;
+    font-size: 1.05rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    border: 2px solid transparent;
+  }
+  .badge.ok   { background: var(--ok-bg);   color: var(--ok-fg);   border-color: var(--ok-line); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-line); }
+  .badge.stop { background: var(--stop-bg); color: var(--stop-fg); border-color: var(--stop-line); }
+
+  @keyframes reveal {
+    from { opacity: 0; transform: translateX(28px) translateY(6px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes flip {
+    from { opacity: 0; transform: rotateY(90deg); }
+    to   { opacity: 1; transform: rotateY(0); }
+  }
+
+  .after { margin-top: 0.5rem; }
+  .strip-label { font-size: 0.85rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 0.5rem; }
+  .journal-strip { display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 2.4rem; margin-bottom: 1.5rem; }
+  .chip {
+    font-family: ui-monospace, Consolas, monospace;
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 2px solid var(--line);
+    opacity: 0;
+  }
+  .chip.shown { opacity: 1; animation: pop 0.3s ease both; }
+  .chip.COMMITTED { border-color: var(--ok-line); color: var(--ok-fg); background: var(--ok-bg); }
+  .chip.REFUSED, .chip.AMBIGUOUS { border-color: var(--stop-line); color: var(--stop-fg); background: var(--stop-bg); }
+  .chip.ESCALATED { border-color: var(--warn-line); color: var(--warn-fg); background: var(--warn-bg); }
+
+  .receipt-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+  .fact {
+    flex: 1 1 120px;
+    min-width: 110px;
+    text-align: center;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    padding: 0.9rem 0.6rem;
+    background: var(--panel);
+    opacity: 0;
+  }
+  .fact.shown { opacity: 1; animation: flip 0.4s ease both; }
+  .fact .mark { font-size: 2rem; line-height: 1; }
+  .fact.yes .mark { color: var(--ok-line); }
+  .fact.no .mark { color: var(--muted); }
+  .fact .lbl { font-size: 0.95rem; font-weight: 700; margin-top: 0.3rem; }
+
+  .final-pill {
+    display: inline-block;
+    font-weight: 800;
+    font-size: 1.1rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    border: 2px solid var(--line);
+    background: var(--panel);
+    opacity: 0;
+    margin-bottom: 1.5rem;
+  }
+  .final-pill.shown { opacity: 1; animation: pop 0.35s ease both; }
+  .final-pill.ok   { background: var(--ok-bg);   color: var(--ok-fg);   border-color: var(--ok-line); }
+  .final-pill.warn { background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-line); }
+  .final-pill.stop { background: var(--stop-bg); color: var(--stop-fg); border-color: var(--stop-line); }
+
+  details { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 0.5rem 1rem; margin-bottom: 2rem; }
+  details summary { font-weight: 700; cursor: pointer; padding: 0.4rem 0; }
+  details h3 { font-size: 1rem; margin: 1rem 0 0.3rem; }
+  details dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+  details dt { color: var(--muted); font-weight: 700; }
+  details dd { margin: 0; }
+  details ul { margin: 0.3rem 0; padding-left: 1.2rem; }
+  .detail-note { color: var(--muted); font-size: 0.92rem; }
+
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
   .skip { position: absolute; left: -999px; top: 0; background: var(--accent); color: #fff; padding: 0.5rem 1rem; }
   .skip:focus { left: 0; }
-  footer { color: var(--muted); font-size: 0.85rem; margin: 2rem 0 1rem; }
+  footer { color: var(--muted); font-size: 0.85rem; margin: 1rem 0 2rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .chip, .fact, .final-pill { opacity: 1 !important; animation: none !important; }
+  }
+  @media (max-width: 720px) {
+    .flow { flex-direction: column; }
+    .card { flex: 1 1 auto; }
+  }
 </style>
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
-<div class="banner" role="note">
-  <strong>Demo:</strong> a fictional county benefits office with simulated systems. Every panel below
-  is real output from the Interlock engine (<code>python experiments/civic_story.py</code>).
-</div>
-<div class="wrap">
-  <header>
-    <h1>Interlock Civic: what the assistant did, checked independently</h1>
-    <p class="sub">Pick a case to see the resident view, the caseworker queue, and the verifiable receipt.</p>
-  </header>
+<a class="skip" href="#flow">Skip to the flow</a>
+<div class="banner" role="note">Demo: fictional office, simulated systems, real Interlock engine output.</div>
 
-  <div class="picker">
-    <label for="scenario">Choose a scenario</label>
-    <select id="scenario" aria-controls="main"></select>
+<div class="wrap">
+  <h1>Interlock Civic: what the assistant did, checked independently</h1>
+
+  <div class="tabs" role="tablist" aria-label="Scenarios" id="tabs"></div>
+
+  <div class="controls">
+    <button type="button" class="btn primary" id="play" aria-label="Play, auto-advance">&#9654; Play</button>
+    <button type="button" class="btn" id="next" aria-label="Next step">&#8594; Next</button>
+    <button type="button" class="btn" id="restart" aria-label="Restart">&#8635; Restart</button>
   </div>
 
-  <main id="main" tabindex="-1" aria-live="polite">
-    <section class="context" aria-labelledby="ctx-h">
-      <h2 id="ctx-h" style="margin:0 0 0.6rem; font-size:1.1rem;">The situation</h2>
-      <dl>
-        <dt>Resident's request</dt><dd id="ctx-request"></dd>
-        <dt>Assistant proposed</dt><dd id="ctx-proposed"></dd>
-        <dt>Rule / gate outcome</dt><dd id="ctx-outcome"></dd>
-        <dt>What changed</dt><dd id="ctx-changed"></dd>
-      </dl>
-      <p class="limit-note" id="ctx-limit" hidden></p>
-    </section>
+  <section id="flow" class="flow" tabindex="-1" aria-live="polite" aria-label="Action flow"></section>
 
-    <div class="panels">
-      <section class="panel" aria-labelledby="res-h">
-        <h2 id="res-h"><span class="dot" aria-hidden="true"></span>Resident view</h2>
-        <div id="resident"></div>
-      </section>
+  <div class="after">
+    <p class="strip-label">Journal</p>
+    <div class="journal-strip" id="journal" aria-label="Journal entries"></div>
 
-      <section class="panel" aria-labelledby="cw-h">
-        <h2 id="cw-h"><span class="dot" aria-hidden="true"></span>Caseworker queue</h2>
-        <div id="caseworker"></div>
-      </section>
+    <p class="strip-label">Receipt &mdash; the four facts</p>
+    <div class="receipt-row" id="receipt" aria-label="Receipt facts"></div>
+    <div><span class="final-pill" id="final"></span></div>
+  </div>
 
-      <section class="panel" aria-labelledby="rec-h">
-        <h2 id="rec-h"><span class="dot" aria-hidden="true"></span>Receipt &amp; journal</h2>
-        <div id="receipt"></div>
-      </section>
-    </div>
-  </main>
+  <details id="details">
+    <summary>Full details</summary>
+    <div id="details-body"></div>
+  </details>
 
   <footer>
     <p>Simulated case system, ledger and scheduler. Payment rail is Stripe test mode (simulated here, tier 1).
@@ -193,134 +260,392 @@
 <script>
 (function () {
   "use strict";
+
   var DATA = window.CIVIC || { scenarios: [] };
-  var select = document.getElementById("scenario");
-
-  function text(el, value) { el.textContent = value == null ? "" : String(value); }
-
-  function changesList(changes) {
-    if (!changes || !changes.length) { return '<span class="empty">Nothing changed.</span>'; }
-    var items = changes.map(function (c) {
-      return "<li><strong>" + esc(c.field) + "</strong>: was " + fmt(c.was) + ", now " + fmt(c.now) + "</li>";
-    });
-    return '<ul class="changes">' + items.join("") + "</ul>";
-  }
-
-  function fmt(v) {
-    if (v === true) { return "yes"; }
-    if (v === false) { return "no"; }
-    if (v === null || v === undefined) { return "none"; }
-    return esc(String(v));
-  }
+  var scenarios = DATA.scenarios || [];
 
   function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
     });
   }
 
-  function residentPanel(r) {
-    var cls = r.state === "recorded" ? "recorded" : (r.state === "checking" ? "checking" : "hold");
-    return '<div class="status-card ' + cls + '">' +
-      "<h3>" + esc(r.headline) + "</h3>" +
-      "<p>" + esc(r.body) + "</p>" +
-      '<p class="state-line">Where it stands: ' + esc(r.state) + "</p>" +
-      "</div>";
+  // Pull a dollar amount out of a request/proposed string, e.g. "$4,120" or "$412".
+  function firstAmount(str) {
+    var m = String(str || "").match(/\$[\d,]+(?:\.\d{2})?/);
+    if (!m) { return null; }
+    return m[0].replace(/\.00$/, "");
   }
 
-  function factsGrid(facts) {
-    if (!facts || !facts.length) { return ""; }
-    var rows = facts.map(function (f) {
-      return "<dt>" + esc(f.label) + "</dt><dd>" + fmt(f.value) + "</dd>";
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Hand-authored beats per scenario key. Numbers pulled from the data at build time.
+  // Each beat: role, emoji, caption (<= ~4 words), badge {cls,text} optional, crash flag optional.
+  function buildBeats(s) {
+    var amtReq = firstAmount(s.request) || firstAmount(s.proposed) || "";
+    var amtProp = firstAmount(s.proposed) || amtReq;
+    var key = s.key;
+
+    if (key === "a") {
+      return [
+        { role: "Resident", emoji: "\uD83E\uDDD1", caption: "Payment missing" },
+        { role: "AI assistant", emoji: "\uD83E\uDD16", caption: "Reissue " + amtProp },
+        { role: "Interlock check", emoji: "\uD83D\uDEE1\uFE0F", caption: "Checks pass \u2713", badge: { cls: "ok", text: "OK" } },
+        { role: "Office systems", emoji: "\uD83C\uDFDB\uFE0F", caption: "Paid once" },
+        { role: "Outcome", emoji: "\u2705", caption: "Done", badge: { cls: "ok", text: "Done" } }
+      ];
+    }
+    if (key === "b") {
+      return [
+        { role: "Resident", emoji: "\uD83E\uDDD1", caption: "Payment missing" },
+        { role: "AI assistant", emoji: "\uD83E\uDD16", caption: "Reissue " + amtProp },
+        { role: "Interlock check", emoji: "\uD83D\uDEE1\uFE0F", caption: "Limit " + (firstAmount(String(s.limit_named || "").split("entitlement")[1]) || "") + " \u2717", badge: { cls: "warn", text: "To person" } },
+        { role: "Office systems", emoji: "\uD83C\uDFDB\uFE0F", caption: "Nothing sent" },
+        { role: "Outcome", emoji: "\uD83D\uDC64", caption: "To caseworker", badge: { cls: "warn", text: "To caseworker" } }
+      ];
+    }
+    if (key === "c") {
+      return [
+        { role: "Resident", emoji: "\uD83E\uDDD1", caption: "Payment missing" },
+        { role: "AI assistant", emoji: "\uD83E\uDD16", caption: "Reissue " + amtProp },
+        { role: "Interlock check", emoji: "\uD83D\uDEE1\uFE0F", caption: "Already paid \u2717", badge: { cls: "warn", text: "To person" } },
+        { role: "Office systems", emoji: "\uD83C\uDFDB\uFE0F", caption: "Nothing sent" },
+        { role: "Outcome", emoji: "\uD83D\uDC64", caption: "To caseworker", badge: { cls: "warn", text: "To caseworker" } }
+      ];
+    }
+    if (key === "d") {
+      return [
+        { role: "Resident", emoji: "\uD83E\uDDD1", caption: "Payment missing" },
+        { role: "AI assistant", emoji: "\uD83E\uDD16", caption: "Reissue " + amtProp },
+        { role: "Interlock check", emoji: "\uD83D\uDEE1\uFE0F", caption: "Case closed \u2717", badge: { cls: "stop", text: "Refused" } },
+        { role: "Office systems", emoji: "\uD83C\uDFDB\uFE0F", caption: "Nothing sent" },
+        { role: "Outcome", emoji: "\uD83D\uDED1", caption: "Refused", badge: { cls: "stop", text: "Refused" } }
+      ];
+    }
+    if (key === "e") {
+      return [
+        { role: "Resident", emoji: "\uD83E\uDDD1", caption: "Payment missing" },
+        { role: "AI assistant", emoji: "\uD83E\uDD16", caption: "Reissue " + amtProp },
+        { role: "Interlock check", emoji: "\uD83D\uDEE1\uFE0F", caption: "Checks pass \u2713", badge: { cls: "ok", text: "OK" } },
+        { role: "Office systems", emoji: "\uD83C\uDFDB\uFE0F", caption: "Sent" },
+        { role: "Crash", emoji: "\uD83D\uDCA5", caption: "Crash", badge: { cls: "stop", text: "Crash" }, crash: true },
+        { role: "Restart", emoji: "\uD83D\uDD04", caption: "Look up, don't guess" },
+        { role: "Outcome", emoji: "\u2705", caption: "Exactly 1 payment", badge: { cls: "ok", text: "Done" } }
+      ];
+    }
+    // key f
+    return [
+      { role: "Resident", emoji: "\uD83E\uDDD1", caption: "Book + new address" },
+      { role: "AI assistant", emoji: "\uD83E\uDD16", caption: "Two actions" },
+      { role: "Interlock check", emoji: "\uD83D\uDEE1\uFE0F", caption: "Checks pass \u2713", badge: { cls: "ok", text: "OK" } },
+      { role: "Office systems", emoji: "\uD83C\uDFDB\uFE0F", caption: "Booked, address saved" },
+      { role: "Outcome", emoji: "\u2705", caption: "Done", badge: { cls: "ok", text: "Done" } }
+    ];
+  }
+
+  function finalClass(finalState) {
+    var f = String(finalState || "").toUpperCase();
+    if (f.indexOf("COMMITTED") === 0) { return "ok"; }
+    if (f.indexOf("ESCALATED") === 0 || f.indexOf("AMBIGUOUS") === 0) { return "warn"; }
+    return "stop";
+  }
+
+  // --- state ---
+  var currentIndex = 0;
+  var beats = [];
+  var step = 0;        // how many flow cards are visible
+  var playTimer = null;
+
+  var tabsEl = document.getElementById("tabs");
+  var flowEl = document.getElementById("flow");
+  var journalEl = document.getElementById("journal");
+  var receiptEl = document.getElementById("receipt");
+  var finalEl = document.getElementById("final");
+  var detailsBody = document.getElementById("details-body");
+  var playBtn = document.getElementById("play");
+
+  function stopPlay() {
+    if (playTimer) { clearInterval(playTimer); playTimer = null; }
+    playBtn.innerHTML = "\u25B6 Play";
+    playBtn.classList.remove("primary");
+    playBtn.classList.add("btn");
+    playBtn.classList.add("primary");
+  }
+
+  function buildTabs() {
+    scenarios.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tab";
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", i === 0 ? "true" : "false");
+      b.dataset.index = String(i);
+      var shortName = shortTitle(s);
+      b.innerHTML = '<span class="key">' + esc(s.key || String.fromCharCode(97 + i)) + "</span>" +
+        '<span class="name">' + esc(shortName) + "</span>";
+      b.addEventListener("click", function () { selectScenario(i); });
+      tabsEl.appendChild(b);
     });
-    return '<dl class="facts-grid">' + rows.join("") + "</dl>";
   }
 
-  function caseworkerPanel(cw) {
-    if (!cw) {
-      return '<p class="empty">No caseworker action needed. The rules and the gate settled this case on their own.</p>';
-    }
-    var html = "<p><strong>Why it is here:</strong> " + esc(cw.why) + "</p>";
-    if (cw.routed_to && cw.routed_to.length) {
-      html += "<p><strong>Routed to:</strong> " + esc(cw.routed_to.join(", ")) + "</p>";
-    }
-    html += "<p><strong>What changed:</strong></p>" + changesList(cw.changes);
-    if (cw.facts && cw.facts.length) {
-      html += "<p style='margin-top:0.75rem'><strong>Facts the rule read:</strong></p>" + factsGrid(cw.facts);
-    }
-    html += '<div class="fix"><strong>Suggested next step</strong>' + esc(cw.suggested_fix) + "</div>";
-    return html;
+  // 2-3 word name per scenario.
+  function shortTitle(s) {
+    var names = {
+      a: "Routine reissue",
+      b: "Over the limit",
+      c: "Already paid",
+      d: "Case closed",
+      e: "Crash and recover",
+      f: "Book and update"
+    };
+    return names[s.key] || s.title || "Scenario";
   }
 
-  function fourFacts(r) {
-    function b(v) { return v === true ? "yes" : v === false ? "no" : esc(String(v)); }
-    return '<dl class="four-facts">' +
-      "<dt>proposed</dt><dd>" + b(r.proposed) + "</dd>" +
-      "<dt>authorized</dt><dd>" + b(r.authorized) + "</dd>" +
-      "<dt>executed</dt><dd>" + b(r.executed) + "</dd>" +
-      "<dt>recorded</dt><dd>" + b(r.recorded) + "</dd>" +
-      "<dt>final state</dt><dd>" + esc(r.final) + "</dd>" +
-      "</dl>";
+  function markTabs() {
+    var all = tabsEl.querySelectorAll(".tab");
+    for (var i = 0; i < all.length; i++) {
+      all[i].setAttribute("aria-selected", Number(all[i].dataset.index) === currentIndex ? "true" : "false");
+    }
   }
 
-  function timeline(entries) {
-    var items = entries.map(function (e) {
-      var note = e.note ? '<span class="note">' + esc(e.note) + "</span>" : "";
-      return "<li><span class='kind " + esc(e.kind) + "'>" + esc(e.kind) + "</span> " +
-        "<span class='hash'>" + esc(e.hash) + "</span>" + note + "</li>";
+  function renderFlowCards() {
+    flowEl.innerHTML = "";
+    beats.forEach(function (beat, i) {
+      var card = document.createElement("div");
+      card.className = "card" + (beat.crash ? " crash" : "");
+      if (reduceMotion && i < step) { card.classList.add("shown"); }
+      var html = '<div class="role">' + esc(beat.role) + "</div>" +
+        '<div class="emoji" aria-hidden="true">' + beat.emoji + "</div>" +
+        '<div class="caption">' + esc(beat.caption) + "</div>";
+      if (beat.badge) {
+        html += '<div><span class="badge ' + beat.badge.cls + '">' + esc(beat.badge.text) + "</span></div>";
+      }
+      card.innerHTML = html;
+      flowEl.appendChild(card);
     });
-    return '<ol class="timeline">' + items.join("") + "</ol>";
-  }
-
-  function receiptPanel(r, entries) {
-    var vclass = r.verified ? "yes" : "no";
-    var vtext = r.verified ? "verify() accepts this receipt" : "verify() rejected this receipt";
-    var html = fourFacts(r);
-    html += '<p class="verified ' + vclass + '">' + esc(vtext) + "</p>";
-    if (r.executed !== true) {
-      html += "<p class='note'>executed is not <strong>true</strong>, because no system of record confirmed it.</p>";
+    // reveal up to `step` cards
+    var cards = flowEl.querySelectorAll(".card");
+    for (var j = 0; j < step && j < cards.length; j++) {
+      cards[j].classList.add("shown");
     }
-    html += "<h3 style='font-size:1rem;margin:1rem 0 0.4rem'>Journal timeline</h3>";
-    html += timeline(entries);
-    return html;
   }
 
-  function render(scenario) {
-    text(document.getElementById("ctx-request"), scenario.request);
-    text(document.getElementById("ctx-proposed"), scenario.proposed);
+  function renderAfter(reveal) {
+    var s = scenarios[currentIndex];
+    var journal = s.journal || [];
+    var r = s.receipt || {};
 
-    var outcome = document.getElementById("ctx-outcome");
-    outcome.innerHTML = '<span class="outcome-tag">' + esc(scenario.gate_outcome) + "</span>";
+    // Journal chips
+    journalEl.innerHTML = "";
+    journal.forEach(function (e) {
+      var chip = document.createElement("span");
+      chip.className = "chip " + esc(e.kind);
+      chip.textContent = e.kind;
+      journalEl.appendChild(chip);
+    });
 
-    document.getElementById("ctx-changed").innerHTML = changesList(scenario.changed);
+    // Receipt facts
+    receiptEl.innerHTML = "";
+    var facts = [
+      { lbl: "proposed", val: r.proposed },
+      { lbl: "authorized", val: r.authorized },
+      { lbl: "executed", val: r.executed },
+      { lbl: "recorded", val: r.recorded }
+    ];
+    facts.forEach(function (f) {
+      var ok = f.val === true;
+      var div = document.createElement("div");
+      div.className = "fact " + (ok ? "yes" : "no");
+      div.innerHTML = '<div class="mark" aria-hidden="true">' + (ok ? "\u2713" : "\u2717") + "</div>" +
+        '<div class="lbl">' + esc(f.lbl) + ": " + (ok ? "yes" : (f.val === "unknown" ? "unknown" : "no")) + "</div>";
+      receiptEl.appendChild(div);
+    });
 
-    var limit = document.getElementById("ctx-limit");
-    if (scenario.limit_named) {
-      limit.hidden = false;
-      text(limit, scenario.limit_named);
+    // final pill
+    finalEl.className = "final-pill " + finalClass(r.final);
+    finalEl.textContent = "Final: " + String(r.final == null ? "" : r.final);
+
+    if (reveal) {
+      // pop chips one at a time
+      var chips = journalEl.querySelectorAll(".chip");
+      revealSequence(chips, 220, function () {
+        var factEls = receiptEl.querySelectorAll(".fact");
+        revealSequence(factEls, 200, function () {
+          finalEl.classList.add("shown");
+        });
+      });
+    }
+  }
+
+  function revealSequence(nodes, gap, done) {
+    if (reduceMotion) {
+      for (var i = 0; i < nodes.length; i++) { nodes[i].classList.add("shown"); }
+      if (done) { done(); }
+      return;
+    }
+    var k = 0;
+    (function tick() {
+      if (k >= nodes.length) { if (done) { done(); } return; }
+      nodes[k].classList.add("shown");
+      k++;
+      setTimeout(tick, gap);
+    })();
+  }
+
+  function renderDetails() {
+    var s = scenarios[currentIndex];
+    var html = "";
+    html += "<h3>The situation</h3>";
+    html += "<dl>";
+    html += "<dt>Resident's request</dt><dd>" + esc(s.request) + "</dd>";
+    html += "<dt>Assistant proposed</dt><dd>" + esc(s.proposed) + "</dd>";
+    html += "<dt>Gate outcome</dt><dd>" + esc(s.gate_outcome) + "</dd>";
+    html += "</dl>";
+
+    if (s.limit_named) {
+      html += '<p class="detail-note">' + esc(s.limit_named) + "</p>";
+    }
+
+    var r = s.resident;
+    if (r) {
+      html += "<h3>What the resident sees</h3>";
+      html += "<dl><dt>" + esc(r.headline) + "</dt><dd>" + esc(r.body) + "</dd>";
+      html += "<dt>Where it stands</dt><dd>" + esc(r.state) + "</dd></dl>";
+    }
+
+    var cw = s.caseworker;
+    if (cw) {
+      html += "<h3>Caseworker item</h3>";
+      html += "<dl>";
+      html += "<dt>Why it is here</dt><dd>" + esc(cw.why) + "</dd>";
+      if (cw.routed_to && cw.routed_to.length) {
+        html += "<dt>Routed to</dt><dd>" + esc(cw.routed_to.join(", ")) + "</dd>";
+      }
+      html += "<dt>Suggested fix</dt><dd>" + esc(cw.suggested_fix) + "</dd>";
+      html += "</dl>";
+      if (cw.facts && cw.facts.length) {
+        html += "<h3>Facts the rule read</h3><dl>";
+        cw.facts.forEach(function (f) {
+          html += "<dt>" + esc(f.label) + "</dt><dd>" + esc(String(f.value)) + "</dd>";
+        });
+        html += "</dl>";
+      }
+    }
+
+    var changed = s.changed || [];
+    html += "<h3>What changed</h3>";
+    if (!changed.length) {
+      html += '<p class="detail-note">Nothing changed.</p>';
     } else {
-      limit.hidden = true;
-      limit.textContent = "";
+      html += "<ul>";
+      changed.forEach(function (c) {
+        html += "<li><strong>" + esc(c.field) + "</strong>: was " + esc(String(c.was)) +
+          ", now " + esc(String(c.now)) + "</li>";
+      });
+      html += "</ul>";
     }
 
-    document.getElementById("resident").innerHTML = residentPanel(scenario.resident);
-    document.getElementById("caseworker").innerHTML = caseworkerPanel(scenario.caseworker);
-    document.getElementById("receipt").innerHTML = receiptPanel(scenario.receipt, scenario.journal);
+    var journal = s.journal || [];
+    html += "<h3>Journal notes</h3><ul>";
+    journal.forEach(function (e) {
+      var note = "";
+      if (e.note) { note = ": " + (Array.isArray(e.note) ? e.note.join(", ") : e.note); }
+      html += "<li><strong>" + esc(e.kind) + "</strong>" + esc(note) + "</li>";
+    });
+    html += "</ul>";
+
+    detailsBody.innerHTML = html;
   }
 
-  DATA.scenarios.forEach(function (s, i) {
-    var opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = String.fromCharCode(97 + i) + ". " + s.title;
-    select.appendChild(opt);
+  function resetView() {
+    step = 1; // only the Resident card visible
+    renderFlowCards();
+    // clear after-section reveals
+    renderAfter(false);
+    finalEl.classList.remove("shown");
+  }
+
+  function selectScenario(i) {
+    stopPlay();
+    currentIndex = i;
+    beats = buildBeats(scenarios[i]);
+    markTabs();
+    renderDetails();
+    resetView();
+  }
+
+  function flowDone() { return step >= beats.length; }
+
+  function nextStep() {
+    if (flowDone()) {
+      // when flow is complete, reveal the after-section (journal + receipt)
+      var alreadyRevealed = finalEl.classList.contains("shown") ||
+        journalEl.querySelector(".chip.shown");
+      if (!alreadyRevealed) {
+        renderAfter(true);
+      }
+      return false; // nothing more to advance in the flow
+    }
+    step++;
+    renderFlowCards();
+    if (flowDone()) {
+      renderAfter(true);
+    }
+    return true;
+  }
+
+  function restart() {
+    stopPlay();
+    beats = buildBeats(scenarios[currentIndex]);
+    resetView();
+  }
+
+  function startPlay() {
+    if (playTimer) { stopPlay(); return; }
+    playBtn.innerHTML = "\u2759\u2759 Pause";
+    playTimer = setInterval(function () {
+      var advanced = nextStep();
+      if (!advanced && flowDone()) {
+        stopPlay();
+      }
+    }, 1200);
+  }
+
+  // --- controls ---
+  playBtn.addEventListener("click", startPlay);
+  document.getElementById("next").addEventListener("click", function () { stopPlay(); nextStep(); });
+  document.getElementById("restart").addEventListener("click", restart);
+
+  document.addEventListener("keydown", function (ev) {
+    var tag = (ev.target && ev.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") { return; }
+    var k = ev.key;
+    if (k === " " || k === "ArrowRight") {
+      ev.preventDefault();
+      stopPlay();
+      nextStep();
+      return;
+    }
+    if (k === "r" || k === "R") {
+      ev.preventDefault();
+      restart();
+      return;
+    }
+    var lower = (k || "").toLowerCase();
+    for (var i = 0; i < scenarios.length; i++) {
+      if ((scenarios[i].key || String.fromCharCode(97 + i)) === lower) {
+        ev.preventDefault();
+        selectScenario(i);
+        return;
+      }
+    }
   });
 
-  select.addEventListener("change", function () {
-    render(DATA.scenarios[Number(select.value)]);
-  });
-
-  if (DATA.scenarios.length) {
-    render(DATA.scenarios[0]);
+  // --- init ---
+  if (scenarios.length) {
+    buildTabs();
+    selectScenario(0);
   }
 })();
 </script>
